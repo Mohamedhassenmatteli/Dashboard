@@ -3,12 +3,12 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import UserInsight from "./pages/superadmin/UserInsight";
 import FleetDashboard from "./pages/superadmin/FleetDashboard";
-import LeaveDashboard from "./pages/superadmin/LeaveDashboard";
+import LeaveDashboard from "./pages/superadmin/CongesDashboard";
 import DeliveryDashboard from "./pages/superadmin/DeliveryDashboard";
 import DriverPerformance from "./pages/superadmin/DriverPerformance";
 
-import ManagerLeaveDashboard from "./pages/manager/leaveDashboard";
-import DriverperformanceperManager from "./pages/manager/DriverPerformance";
+import ManagerLeaveDashboard from "./pages/manager/DriverLeavesDashbaord";
+import DriverperformanceperManager from "./pages/manager/DriverPerformanceDashboard";
 import ManagerLayout from "./layouts/ManagerLayout"
 import DriverDashboard from "./pages/Driver/DriverDashboard";
 
@@ -29,7 +29,7 @@ const App = () =>
         element: React.createElement(FleetDashboard),
       }),
       React.createElement(Route, {
-        path: "/superadmin/LeaveDashboard",
+        path: "/superadmin/CongesDashboard",
         element: React.createElement(LeaveDashboard),
       }),
       React.createElement(Route, {
@@ -62,7 +62,8 @@ const App = () =>
       React.createElement(Route, {
         path: "/driver/:driverId/dashboard",
         element: React.createElement(DriverDashboard),
-      })
+      }),
+      
     )
   );
 

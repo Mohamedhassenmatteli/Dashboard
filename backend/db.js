@@ -1,12 +1,22 @@
-// backend/db.js
-const { Pool } = require('pg');
+const mongoose = require('mongoose');
 
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'postgres',
-  password: 'root',
-  port: 5432,
-});
+const connectDB = async () => {
+  try {
+    // Replace the following with your MongoDB connection string
+    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/Camion_navigation';
 
-module.exports = pool;
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      // useFindAndModify: false, // (optional) deprecated in latest mongoose versions
+      // useCreateIndex: true,    // (optional) deprecated in latest mongoose versions
+    });
+
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;

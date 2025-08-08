@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from "react";
 import SuperAdminLayout from "../../layouts/superadmin";
 import {
-  BarChart, Bar, CartesianGrid, XAxis, YAxis,
-  Tooltip, Legend, ResponsiveContainer, Line, LineChart
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Line,
+  LineChart,
 } from "recharts";
 import axios from "axios";
 
@@ -18,17 +26,41 @@ const Fleet = () => {
   const [drillLevel, setDrillLevel] = useState("year");
   const [drillValue, setDrillValue] = useState(null);
 
+  // Transform backend capacityByBrandStatus to frontend bar chart format
+  const transformCapacityData = (rawData) => {
+    const grouped = {};
+
+    rawData.forEach(({ _id, totalCapacity }) => {
+      const { brand, status } = _id;
+      if (!grouped[brand]) {
+        grouped[brand] = {
+          brand,
+          Available: 0,
+          InService: 0,
+          Maintenance: 0,
+        };
+      }
+      if (status === "available") grouped[brand].Available += totalCapacity;
+      else if (status === "in_service") grouped[brand].InService += totalCapacity;
+      else if (status === "maintenance") grouped[brand].Maintenance += totalCapacity;
+    });
+
+    return Object.values(grouped);
+  };
+
   useEffect(() => {
-    axios.get("http://localhost:5000/api/fleet/insights")
+    axios
+      .get("http://localhost:5000/api/fleet/insights")
       .then((res) => {
         const {
           avgMileage,
           totalTrucks,
           trucksInService,
-          truckCapacityByBrand
+          capacityByBrandStatus,
         } = res.data;
+
         setFleetKpi({ avgMileage, totalTrucks, trucksInService });
-        setTruckCapacityData(truckCapacityByBrand);
+        setTruckCapacityData(transformCapacityData(capacityByBrandStatus));
       })
       .catch((err) => {
         console.error("Error fetching fleet insight data:", err);
@@ -36,47 +68,54 @@ const Fleet = () => {
   }, []);
 
   useEffect(() => {
-    setDrillData([]);
-    axios.get("http://localhost:5000/api/fleet/drill", {
-      params: { level: drillLevel, value: drillValue },
-    }).then((res) => {
-      setDrillData(transformDrillData(res.data));
-    });
+    axios
+      .get("http://localhost:5000/api/fleet/drill", {
+        params: { level: drillLevel, value: drillValue },
+      })
+      .then((res) => {
+        
+        const grouped = {};
+        res.data.forEach(({ period, status, truck_count }) => {
+          if (!grouped[period]) grouped[period] = { period };
+          // Normalize status keys (replace spaces, lowercase)
+          const key = status.toLowerCase().replace(/\s+/g, "_");
+          grouped[period][key] = truck_count;
+        });
+
+        // Fill zeros for missing statuses to avoid NaN issues
+        const allStatuses = [
+          "available",
+          "in_service",
+          "maintenance",
+          "idle",
+          "delivering",
+          "out_of_service",
+        ];
+
+        const formatted = Object.values(grouped).map((entry) => {
+          allStatuses.forEach((status) => {
+            if (!(status in entry)) entry[status] = 0;
+          });
+          return entry;
+        });
+
+        setDrillData(formatted);
+      })
+      .catch((err) => {
+        console.error("Error fetching drill data:", err);
+      });
   }, [drillLevel, drillValue]);
 
-  const transformDrillData = (rows) => {
-    const grouped = {};
-    const statusMap = {
-      delivering: "Delivering",
-      idle: "Idle",
-      available: "Available",
-      in_service: "In Service",
-      out_of_service: "Out of Service",
-      maintenance: "Maintenance"
+  // Compute total registrations per period (sum of all statuses)
+  const drillDataWithTotals = drillData.map((entry) => {
+    const totalCount = Object.keys(entry)
+      .filter((key) => key !== "period")
+      .reduce((sum, key) => sum + (entry[key] || 0), 0);
+    return {
+      ...entry,
+      registration_count: totalCount,
     };
-
-    rows.forEach((row) => {
-      const key = row.period;
-      if (!grouped[key]) {
-        grouped[key] = {
-          period: key,
-          registration_count: parseInt(row.registration_count),
-          Delivering: 0,
-          Idle: 0,
-          Available: 0,
-          "In Service": 0,
-          "Out of Service": 0,
-          Maintenance: 0
-        };
-      }
-      const statusLabel = statusMap[row.status];
-      if (statusLabel && grouped[key]) {
-        grouped[key][statusLabel] = parseInt(row.truck_count);
-      }
-    });
-
-    return Object.values(grouped);
-  };
+  });
 
   const drillDown = (period) => {
     if (drillLevel === "year") {
@@ -91,189 +130,163 @@ const Fleet = () => {
   const drillUp = () => {
     if (drillLevel === "day" && drillValue) {
       setDrillLevel("month");
-      setDrillValue(drillValue.substring(0, 4));
+      setDrillValue(drillValue.substring(0, 7)); // YYYY-MM
     } else if (drillLevel === "month" && drillValue) {
       setDrillLevel("year");
       setDrillValue(null);
     }
   };
-return React.createElement(
-  SuperAdminLayout,
-  null,
-  React.createElement(
-    "div",
-    { className: "bg-gray-100 min-h-screen p-6" },
-    // Title
-    React.createElement(
-      "div",
-      { className: "bg-white py-4 px-6 mb-6 rounded shadow", key: "title" },
-      React.createElement(
-        "h1",
-        { className: "text-center text-2xl font-bold text-gray-900" },
-        "Fleet Overview"
-      )
-    ),
 
-    // KPIs + Charts container
-    React.createElement(
-      "div",
-      { className: "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start", key: "kpis-charts" },
-      // KPI cards container
-      React.createElement(
-        "div",
-        { className: "grid grid-cols-1 gap-4", key: "kpi-cards" },
-        React.createElement(KpiCard, { title: "Average Mileage", value: `${fleetKpi.avgMileage} km`, key: "avg" }),
-        React.createElement(KpiCard, { title: "Total Trucks", value: fleetKpi.totalTrucks, key: "total" }),
-        React.createElement(KpiCard, { title: "Trucks In Service", value: fleetKpi.trucksInService, key: "inService" }),
-      ),
+  return (
+    <SuperAdminLayout>
+      <div className="bg-gray-100 min-h-screen p-6">
+        {/* Title */}
+        <div className="bg-white py-4 px-6 mb-6 rounded shadow">
+          <h1 className="text-center text-2xl font-bold text-gray-900">
+            Fleet Overview
+          </h1>
+        </div>
 
-      // Stacked bar chart container
-      React.createElement(
-        "div",
-        { className: "col-span-2 bg-white shadow rounded p-4", key: "stacked-bar" },
-        React.createElement(
-          "h2",
-          { key: "TruckCapacity", className: "text-lg font-bold text-gray-800 text-center mb-4" },
-          "Truck Capacity by Brand & Status"
-        ),
-        React.createElement(
-          ResponsiveContainer,
-          { width: "100%", height: 300 },
-          React.createElement(
-            BarChart,
-            { data: truckCapacityData, margin: { top: 20, right: 30, left: 20, bottom: 5 } },
-            React.createElement(CartesianGrid, { strokeDasharray: "3 3", key: "grid" }),
-            React.createElement(XAxis, { key: "x-axis", dataKey: "brand" }),
-            React.createElement(YAxis, { key: "y-axis" }),
-            React.createElement(Tooltip, { key: "tooltip" }),
-            React.createElement(Legend, { key: "legend" }),
-            React.createElement(Bar, { key: "available", dataKey: "Available", stackId: "a", fill: "#4caf50" }),
-            React.createElement(Bar, { key: "inService", dataKey: "In Service", stackId: "a", fill: "#2196f3" }),
-            React.createElement(Bar, { key: "maintenance", dataKey: "Maintenance", stackId: "a", fill: "#f44336" }),
-          )
-        )
-      )
-    ),
+        {/* KPIs + Charts container */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* KPI cards container */}
+          <div className="grid grid-cols-1 gap-4">
+            <KpiCard
+              title="Average Mileage"
+              value={`${fleetKpi.avgMileage.toFixed(2)} km`}
+              key="avg"
+            />
+            <KpiCard
+              title="Total Trucks"
+              value={fleetKpi.totalTrucks}
+              key="total"
+            />
+            <KpiCard
+              title="Trucks In Service"
+              value={fleetKpi.trucksInService}
+              key="inService"
+            />
+          </div>
 
-    // Drill charts container
-    React.createElement(
-        "div",
-        { className: "grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10", key: "drill-charts" },
+          {/* Stacked bar chart container */}
+          <div className="col-span-2 bg-white shadow rounded p-4">
+            <h2 className="text-lg font-bold text-gray-800 text-center mb-4">
+              Truck Capacity by Brand & Status
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={truckCapacityData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="brand" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Available" stackId="a" fill="#4caf50" />
+                <Bar dataKey="InService" stackId="a" fill="#2196f3" />
+                <Bar dataKey="Maintenance" stackId="a" fill="#f44336" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
-        // Drilldown Chart container
-        React.createElement(
-          "div",
-          { className: "bg-white shadow rounded p-4", key: "drill" },
-          React.createElement(
-            "div",
-            { className: "flex justify-between items-center mb-4" },
-            React.createElement(
-              "h2",
-              { key: "TruckRegistration", className: "text-lg font-bold text-gray-800 text-center w-full" },
-              "Truck Registrations by Status and Brand"
-            ),
-            React.createElement(
-              "button",
-              {
-                onClick: drillUp,
-                className: "flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 px-4 rounded-full shadow hover:shadow-lg transition duration-200"
-              },
-              React.createElement(
-                "svg",
-                {
-                  xmlns: "http://www.w3.org/2000/svg",
-                  className: "h-5 w-5",
-                  fill: "none",
-                  viewBox: "0 0 24 24",
-                  stroke: "currentColor"
-                },
-                React.createElement("path", {
-                  strokeLinecap: "round",
-                  strokeLinejoin: "round",
-                  strokeWidth: 2,
-                  d: "M5 15l7-7 7 7"
-                })
-              ),
-              "Drill Up"
-            )
-          ),
-          React.createElement(
-            ResponsiveContainer,
-            { width: "100%", height: 300 },
-            React.createElement(
-              BarChart,
-              { data: drillData },
-              React.createElement(CartesianGrid, { strokeDasharray: "3 3", key: "grid" }),
-              React.createElement(XAxis, { key: "x-axis", dataKey: "period" }),
-              React.createElement(YAxis, { key: "y-left", yAxisId: "left", orientation: "left" }),
-              React.createElement(YAxis, { key: "y-right", yAxisId: "right", orientation: "right" }),
-              React.createElement(Tooltip, { key: "tooltip" }),
-              React.createElement(Legend, { key: "legend" }),
-              ...["Available", "Delivering", "Idle", "In Service", "Out of Service", "Maintenance"].map((key, i) =>
-                React.createElement(Bar, {
-                  key: `bar-${key}`,
-                  yAxisId: "left",
-                  dataKey: key,
-                  stackId: "a",
-                  fill: ["#4caf50", "#9c27b0", "#607d8b", "#2196f3", "#ff5722", "#f44336"][i],
-                  onClick: (data) => {
-                    if (data && data.payload?.period) drillDown(data.payload.period);
-                  }
-                })
-              ),
-              React.createElement(Line, {
-                key: "line",
-                yAxisId: "right",
-                type: "monotone",
-                dataKey: "registration_count",
-                stroke: "#ff9800",
-                strokeWidth: 2
-              })
-            )
-          )
-        ),
+        {/* Drill charts container */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
+          {/* Drilldown Chart container */}
+          <div className="bg-white shadow rounded p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800 text-center w-full">
+                Truck Registrations by Status and Brand
+              </h2>
+              <button
+                onClick={drillUp}
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 px-4 rounded-full shadow hover:shadow-lg transition duration-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 15l7-7 7 7"
+                  />
+                </svg>
+                Drill Up
+              </button>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={drillDataWithTotals}
+                onClick={(data) => {
+                  if (data && data.activeLabel) drillDown(data.activeLabel);
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="period" />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" />
+                <Tooltip />
+                <Legend />
+                <Bar yAxisId="left" dataKey="available" stackId="a" fill="#4caf50" />
+                <Bar yAxisId="left" dataKey="in_service" stackId="a" fill="#2196f3" />
+                <Bar yAxisId="left" dataKey="maintenance" stackId="a" fill="#f44336" />
+                <Bar yAxisId="left" dataKey="idle" stackId="a" fill="#607d8b" />
+                <Bar yAxisId="left" dataKey="delivering" stackId="a" fill="#9c27b0" />
+                <Bar yAxisId="left" dataKey="out_of_service" stackId="a" fill="#ff5722" />
 
-        // Maintenance Line Chart container
-        React.createElement(
-          "div",
-          { className: "bg-white shadow rounded p-4", key: "maintenance" },
-          React.createElement(
-            "h2",
-            { key: "Truck", className: "text-lg font-bold text-gray-800 text-center mb-4" },
-            "Trucks Under Maintenance"
-          ),
-          React.createElement(
-            ResponsiveContainer,
-            { width: "100%", height: 300 },
-            React.createElement(
-              LineChart,
-              { data: drillData },
-              React.createElement(CartesianGrid, { strokeDasharray: "3 3", key: "grid" }),
-              React.createElement(XAxis, { key: "x-axis", dataKey: "period" }),
-              React.createElement(YAxis, { key: "y-axis" }),
-              React.createElement(Tooltip, { key: "tooltip" }),
-              React.createElement(Legend, { key: "legend" }),
-              React.createElement(Line, {
-                key: "line-maintenance",
-                type: "monotone",
-                dataKey: "Maintenance",
-                stroke: "#f44336",
-                strokeWidth: 2
-              })
-            )
-          )
-        )
-      )
-    )
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="registration_count"
+                  stroke="#ff9800"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 6 }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Maintenance Line Chart container */}
+          <div className="bg-white shadow rounded p-4">
+            <h2 className="text-lg font-bold text-gray-800 text-center mb-4">
+              Trucks Under Maintenance Over Time
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={drillData.filter((d) => d.status === "maintenance")}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="period" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#f44336"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </SuperAdminLayout>
   );
-
 };
 
-const KpiCard = ({ title, value }) => {
-  return React.createElement("div", { className: "bg-white shadow rounded p-4 text-center" }, [
-    React.createElement("div", { className: "text-sm font-bold text-gray-800 mb-1", key: "title" }, title),
-    React.createElement("div", { className: "text-2xl font-bold text-gray-800", key: "value" }, value)
-  ]);
-};
+const KpiCard = ({ title, value }) => (
+  <div className="bg-white shadow rounded p-4 text-center">
+    <div className="text-sm font-bold text-gray-800 mb-1">{title}</div>
+    <div className="text-2xl font-bold text-gray-800">{value}</div>
+  </div>
+);
 
 export default Fleet;

@@ -1,33 +1,51 @@
-// backend/server.js
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');           // <-- import cors here
+const connectDB = require('./db');
+// Super admin API
+const DriverPerforRoutes = require('./routes/DriverPerfAPI');
+const deliveryRoute = require('./routes/DeliveryAPI');
+const fleetRoutes = require('./routes/FleetAPI');
+const leaveRoutes = require('./routes/CongesAPI');
+const UserRoutes = require('./routes/UsersAPI');
+
+// Manager API
+const DriverPrformanceRoute = require("./routes/DriverPerformanceAPI")
+const DriverConges  = require("./routes/DriverCongesAPI")
+
+// Driver API
+const driverDashboard = require("./routes/DriverDashboardAPI")
+
 const app = express();
 
-app.use(cors());
+// Connect to MongoDB
+connectDB();
+
+// Enable CORS for all origins (or restrict to your frontend origin)
+app.use(cors({
+  origin: 'http://localhost:3000',  // allow your React app origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,                // if you use cookies/auth (optional)
+}));
+
+// Middleware to parse JSON bodies
 app.use(express.json());
-//insight api
-const superadminRoutes = require("./routes/UserInsightApi");
-app.use("/api/superadmin", superadminRoutes);
-//fleet api
-const fleetroute =  require("./routes/FleetApi")
-app.use("/api/fleet",fleetroute);
-//delivery api
-const deliveryroute = require("./routes/DeliveryAPI")
-app.use("/api/delivery",deliveryroute);
-//leave api
-const leaveroute = require("./routes/LeaveApi");
-app.use("/api/leave",leaveroute);
-//Driverperformance api
-const driverPerRoute = require("./routes/DriverPerformanceApi");
-app.use("/api/driver-performance",driverPerRoute);
-const leaveManagerRoutes = require("./routes/leave.manager");
-app.use("/api/leave/manager", leaveManagerRoutes);
-const DriverperformanceperManager = require("./routes/DriverPerformance.manager")
-app.use("/api/manager-performance",DriverperformanceperManager)
-const driverDashboard = require("./routes/DriverDashboard");
-app.use("/api/driver-dashboard",driverDashboard)
 
+// Use API routes under /api
+app.use('/api', DriverPerforRoutes);
+app.use('/api/delivery', deliveryRoute);
+app.use("/api/fleet", fleetRoutes);
+app.use('/api/leave',leaveRoutes);
+app.use('/api/superadmin',UserRoutes)
+app.use('/api/manager-performance',DriverPrformanceRoute)
+app.use('/api/leave/manager',DriverConges)
+app.use('/api/driver-dashboard/',driverDashboard)
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('Welcome to the Trucking API');
+});
+
+// Start the server
 app.listen(5000, () => {
-  console.log("Backend running on http://localhost:5000");
+  console.log(`Server running on http://localhost:5000`);
 });

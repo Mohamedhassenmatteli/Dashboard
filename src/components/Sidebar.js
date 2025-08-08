@@ -8,7 +8,7 @@ const Sidebar = () => {
     { name: "User Dashboard", path: "/superadmin/UserInsight" },
     { name: "Fleet Dashboard", path: "/superadmin/FleetDashboard" },
     { name: "Delivery Dashboard", path: "/superadmin/DeliveryDashboard" },
-    { name: "Leave Dashboard", path: "/superadmin/LeaveDashboard" },
+    { name: "Leave Dashboard", path: "/superadmin/CongesDashboard" },
     { name: "Driver Performance", path: "/superadmin/DriverPerformance" },
   ];
 
