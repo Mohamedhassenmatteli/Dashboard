@@ -45,7 +45,7 @@ router.get("/insights", async (req, res) => {
 // =============================================
 router.get("/drill", async (req, res) => {
   try {
-    const { level, value } = req.query;
+    const { level, parent } = req.query;
 
     let dateFormat;
     if (level === "year") {
@@ -58,15 +58,15 @@ router.get("/drill", async (req, res) => {
       return res.status(400).json({ error: "Invalid level parameter" });
     }
 
-    // Filtrer par période sélectionnée (si valeur fournie)
-    let matchStage = null;
-    if (value) {
+    // Build match stage based on parent
+    let matchStage = {};
+    if (parent) {
       let startDate, endDate;
-      if (level === "year") {
-        startDate = new Date(`${value}-01-01`);
-        endDate = new Date(`${parseInt(value) + 1}-01-01`);
-      } else if (level === "month") {
-        const [year, month] = value.split("-");
+      if (parent.length === 4) { // YYYY
+        startDate = new Date(`${parent}-01-01`);
+        endDate = new Date(`${parseInt(parent) + 1}-01-01`);
+      } else if (parent.length === 7) { // YYYY-MM
+        const [year, month] = parent.split("-");
         startDate = new Date(`${year}-${month}-01`);
         let nextMonth = parseInt(month) + 1;
         let nextYear = parseInt(year);
@@ -74,53 +74,36 @@ router.get("/drill", async (req, res) => {
           nextMonth = 1;
           nextYear++;
         }
-        const paddedNextMonth = nextMonth.toString().padStart(2, "0");
-        endDate = new Date(`${nextYear}-${paddedNextMonth}-01`);
-      } else if (level === "day") {
-        startDate = new Date(value);
+        endDate = new Date(`${nextYear}-${String(nextMonth).padStart(2, "0")}-01`);
+      } else if (parent.length === 10) { // YYYY-MM-DD
+        startDate = new Date(parent);
         endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + 1);
       }
-
-      matchStage = {
-        $match: {
-          createdAt: {
-            $gte: startDate,
-            $lt: endDate,
-          },
-        },
-      };
+      matchStage = { createdAt: { $gte: startDate, $lt: endDate } };
     }
 
-    const pipeline = [];
-    if (matchStage) pipeline.push(matchStage);
-
-    pipeline.push(
+    const drillData = await Camion.aggregate([
+      { $match: matchStage },
       {
         $group: {
-          _id: {
-            period: dateFormat,
-            status: "$status",
-          },
-          truck_count: { $sum: 1 },
-        },
+          _id: { period: dateFormat, status: "$status" },
+          truck_count: { $sum: 1 }
+        }
       },
       { $sort: { "_id.period": 1, "_id.status": 1 } }
-    );
+    ]);
 
-    const drillData = await Camion.aggregate(pipeline);
-
-    const formatted = drillData.map((doc) => ({
+    res.json(drillData.map(doc => ({
       period: doc._id.period,
       status: doc._id.status,
-      truck_count: doc.truck_count,
-    }));
-
-    res.json(formatted);
+      truck_count: doc.truck_count
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // =============================================
 // GET Drilldown for Trucks Under Maintenance

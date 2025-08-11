@@ -16,20 +16,33 @@ import {
 import { useParams } from "react-router-dom";
 
 const statusColors = {
-  autre: "#2196f3",
-  vacance: "#001f54",
-  maladie: "#ff9800",
+  autre: "#6366F1",  // indigo-500
+  vacance: "#10B981", // emerald-500
+  maladie: "#F59E0B", // amber-400
 };
-const Colors = {
-  approved: "#2196f3",
-  pending: "#001f54",
-  rejected: "#ff9800",
+const statusLabels = {
+  autre: "Other",
+  vacance: "Vacation",
+  maladie: "Sickness",
+};
+const requestStatusColors = {
+  approved: "#10B981", // emerald-500
+  pending: "#F59E0B",  // amber-400
+  rejected: "#EF4444", // red-500
+};
+const requestStatusLabels = {
+  approved: "Approved",
+  pending: "Pending",
+  rejected: "Rejected",
 };
 
-function Leave() {
+const Leave = () => {
   const { managerId } = useParams();
 
-  const [leaveKpi, setLeaveKpi] = useState({ TotalRequest: 0, Period: "" });
+  const [leaveKpi, setLeaveKpi] = useState({
+    TotalRequest: 0,
+    Period: "",
+  });
   const [driver, setDriver] = useState("");
   const [drillData, setDrillData] = useState([]);
   const [drillLevel, setDrillLevel] = useState("year");
@@ -38,41 +51,56 @@ function Leave() {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState("");
 
-  useEffect(() => {
-    console.log("Fetching leave insight with:", { managerId, driver });
-    axios
-      .get("http://localhost:5000/api/leave/manager/insight", {
+  const fetchInsights = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/leave/manager/insight", {
         params: { managerId, driver },
-      })
-      .then((res) => {
-        console.log("Leave Insight response:", res.data);
-        const { TotalRequest, Period, users } = res.data;
-        setLeaveKpi({ TotalRequest, Period });
-        setUsers(users);
-      })
-      .catch((err) => {
-        console.error("Error fetching leave insight data:", err);
       });
-  }, [managerId, driver]);
+      const { TotalRequest, Period, users } = res.data;
+      setLeaveKpi({ TotalRequest, Period });
+      setUsers(users);
+    } catch (err) {
+      console.error("Error fetching leave insight data:", err);
+    }
+  };
+
+  const fetchDrillData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/leave/manager/drill", {
+        params: { managerId, level: drillLevel, value: drillValue, driver },
+      });
+      setDrillData(transformDrillData(res.data));
+    } catch (err) {
+      console.error("Error fetching drill data:", err);
+    }
+  };
+
+  const fetchPieData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/leave/manager/pie", {
+        params: { managerId, driver },
+      });
+      const total = res.data.reduce(
+        (sum, item) => sum + parseInt(item.count),
+        0
+      );
+      const formatted = res.data.map((item) => ({
+        name: item.status,
+        value: parseInt(item.count),
+        percent: total > 0 ? ((item.count / total) * 100).toFixed(2) : 0,
+      }));
+      setPieData(formatted);
+    } catch (err) {
+      console.error("Error fetching pie data:", err);
+      setPieData([]);
+    }
+  };
 
   useEffect(() => {
-    console.log(
-      "Fetching drill data with:",
-      { managerId, level: drillLevel, value: drillValue, driver }
-    );
-    setDrillData([]);
-    axios
-      .get("http://localhost:5000/api/leave/manager/drill", {
-        params: { managerId, level: drillLevel, value: drillValue, driver },
-      })
-      .then((res) => {
-        console.log("Drill data response:", res.data);
-        setDrillData(transformDrillData(res.data));
-      })
-      .catch((err) => {
-        console.error("Error fetching drill data:", err);
-      });
-  }, [managerId, drillLevel, drillValue, driver]);
+    fetchInsights();
+    fetchDrillData();
+    fetchPieData();
+  }, [managerId, driver, drillLevel, drillValue]);
 
   const transformDrillData = (rows) => {
     const grouped = {};
@@ -85,18 +113,15 @@ function Leave() {
     rows.forEach((row) => {
       let key = row.period;
 
-      // Format period key if it's an object (year, month, day)
+      // If period is object, format it as string YYYY-MM-DD or YYYY-MM or YYYY
       if (typeof key === "object" && key !== null) {
         if ("day" in key) {
-          // day-level period: format "YYYY-MM-DD"
           key = `${key.year}-${String(key.month).padStart(2, "0")}-${String(
             key.day
           ).padStart(2, "0")}`;
         } else if ("month" in key) {
-          // month-level period: format "YYYY-MM"
           key = `${key.year}-${String(key.month).padStart(2, "0")}`;
         } else if ("year" in key) {
-          // year-level period: format "YYYY"
           key = `${key.year}`;
         }
       }
@@ -111,39 +136,14 @@ function Leave() {
       }
       const typeLabel = status[row.type];
       if (typeLabel && grouped[key]) {
-        grouped[key][typeLabel] += parseInt(row.count_time_off, 10);
+        grouped[key][typeLabel] += parseInt(row.count_time_off);
       }
     });
 
     return Object.values(grouped);
   };
 
-  useEffect(() => {
-    console.log("Fetching pie data with:", { managerId, driver });
-    axios
-      .get("http://localhost:5000/api/leave/manager/pie", {
-        params: { managerId, driver },
-      })
-      .then((res) => {
-        console.log("Pie data response:", res.data);
-        const total = res.data.reduce(
-          (sum, item) => sum + parseInt(item.count, 10),
-          0
-        );
-        const formatted = res.data.map((item) => ({
-          name: item.status,
-          value: parseInt(item.count, 10),
-          percent: ((item.count / total) * 100).toFixed(2),
-        }));
-        setPieData(formatted);
-      })
-      .catch((err) => {
-        console.error("Error fetching pie data:", err);
-        setPieData([]);
-      });
-  }, [managerId, driver]);
-
-  function drillDown(period) {
+  const drillDown = (period) => {
     if (drillLevel === "year") {
       setDrillLevel("month");
       setDrillValue(period);
@@ -151,88 +151,195 @@ function Leave() {
       setDrillLevel("day");
       setDrillValue(period);
     }
-  }
+  };
 
-  function drillUp() {
+  const drillUp = () => {
     if (drillLevel === "day" && drillValue) {
       setDrillLevel("month");
-      setDrillValue(drillValue.substring(0, 7)); // e.g. "2025-08"
-    } else if (drillLevel === "month" && drillValue) {
+      setDrillValue(drillValue.substring(0, 7));
+    } else if (drillLevel === "month") {
       setDrillLevel("year");
       setDrillValue(null);
     }
-  }
+  };
 
-  function handleChange(e) {
+  const formatDrillLabel = () => {
+    if (drillLevel === "year") return "Yearly";
+    if (drillLevel === "month") return "Monthly";
+    return "Daily";
+  };
+
+  const handleChange = (e) => {
     const selectedId = e.target.value;
-    console.log("Selected driver ID:", selectedId);
     setSelectedUserId(selectedId);
     const selectedUser = users.find((u) => u._id === selectedId);
     if (selectedUser) {
-      console.log("Selected driver:", selectedUser);
-      setDriver(selectedUser.FirstName); // or firstname depending on your backend
+      setDriver(selectedUser.FirstName);
     } else {
       setDriver("");
     }
-  }
+  };
 
-  const KpiCard = ({ title, value }) => (
-    <div className="bg-white shadow rounded p-4 text-center w-full h-full flex flex-col justify-center">
-      <div className="text-lg font-bold text-gray-800 mb-2">{title}</div>
-      <div className="text-2xl font-bold text-gray-700">{value}</div>
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-4 shadow-lg rounded-lg border border-gray-200">
+          <p className="font-bold text-gray-800">{label}</p>
+          <div className="space-y-1 mt-2">
+            {payload.map((entry, index) => (
+              <div key={`tooltip-item-${index}`} className="flex items-center">
+                <div
+                  className="w-3 h-3 rounded-full mr-2"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-gray-600 font-medium">
+                  {statusLabels[entry.dataKey] || entry.dataKey}:{" "}
+                </span>
+                <span className="font-bold ml-1">{entry.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const KpiCard = ({ title, value, icon }) => (
+    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 relative overflow-hidden">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{value}</p>
+        </div>
+        {icon && (
+          <div className="p-3 rounded-lg bg-opacity-10 bg-blue-500">{icon}</div>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <>
-      <div className="bg-white py-4 px-6 mb-6 rounded shadow">
-        <h1 className="text-center text-2xl font-bold text-gray-900">
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-6 px-6 mb-6 rounded-lg shadow-lg">
+        <h1 className="text-center text-3xl font-bold text-white">
           Leave Dashboard
         </h1>
+        <p className="text-center text-blue-100 mt-2">
+          Track and analyze leave requests and approvals
+        </p>
       </div>
 
-      <div className="flex flex-col items-center">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6 w-full max-w-4xl">
-          <KpiCard title="Total Leave Requests" value={leaveKpi.TotalRequest} />
-          <KpiCard title="Period" value={leaveKpi.Period} />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+          <label
+            htmlFor="slicer"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Filter by Driver
+          </label>
+          <select
+            value={selectedUserId}
+            onChange={handleChange}
+            id="slicer"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+          >
+            <option value="">All Drivers</option>
+            {users.map((user) => (
+              <option key={user._id} value={user._id}>
+                {user.FirstName} {user.LastName}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="w-full flex flex-col lg:flex-row gap-6 items-start px-4">
-          <div className="bg-white shadow rounded p-4 w-64">
-            <label
-              htmlFor="slicer"
-              className="block text-sm font-medium text-gray-700 mb-2"
+        <KpiCard
+          title="Total Requests"
+          value={leaveKpi.TotalRequest}
+          icon={
+            <svg
+              className="w-8 h-8 text-blue-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Filter by Option
-            </label>
-            <select
-              value={selectedUserId}
-              onChange={handleChange}
-              className="border rounded p-2 w-full"
-              id="slicer"
-            >
-              <option value="">-- Select Driver --</option>
-              {users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {user.FirstName} {user.LastName}
-                </option>
-              ))}
-            </select>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+          }
+        />
 
-          <div className="w-full lg:w-2/4 bg-white shadow rounded p-4">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-bold text-gray-800 text-center w-full">
-                Leave Requests Over Time
-              </h2>
+        <KpiCard
+          title="Period"
+          value={leaveKpi.Period}
+          icon={
+            <svg
+              className="w-8 h-8 text-blue-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          title="Avg. Requests"
+          value={
+            users.length > 0
+              ? (leaveKpi.TotalRequest / users.length).toFixed(1)
+              : "N/A"
+          }
+          icon={
+            <svg
+              className="w-8 h-8 text-blue-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+          }
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800 mb-2 sm:mb-0">
+              Leave Requests Over Time
+            </h2>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-500">
+                {formatDrillLabel()} View
+              </span>
               <button
                 onClick={drillUp}
-                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 px-4 rounded-full shadow hover:shadow-lg transition duration-200"
-                type="button"
+                disabled={drillLevel === "year"}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition duration-200 ${
+                  drillLevel === "year"
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
+                  className="h-4 w-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -247,80 +354,105 @@ function Leave() {
                 Drill Up
               </button>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart
-                data={drillData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                onClick={(e) => {
-                  if (e && e.activeLabel) {
-                    drillDown(e.activeLabel);
-                  }
-                }}
+          </div>
+
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart
+              data={drillData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              onClick={(e) => {
+                if (e && e.activeLabel) {
+                  drillDown(e.activeLabel);
+                }
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis
+                dataKey="period"
+                tick={{ fill: "#6B7280" }}
+                tickMargin={10}
+              />
+              <YAxis tick={{ fill: "#6B7280" }} />
+              <RechartsTooltip content={<CustomTooltip />} />
+              <Legend
+                formatter={(value) => statusLabels[value] || value}
+                wrapperStyle={{ paddingTop: 20 }}
+              />
+              {Object.entries(statusColors).map(([status, color]) => (
+                <Line
+                  key={status}
+                  type="monotone"
+                  dataKey={status}
+                  stroke={color}
+                  strokeWidth={2}
+                  activeDot={{ r: 6 }}
+                  name={statusLabels[status]}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              Request Status Distribution
+            </h2>
+            <div className="flex space-x-2">
+              {Object.entries(requestStatusColors).map(([status, color]) => (
+                <div key={status} className="flex items-center">
+                  <div
+                    className="w-3 h-3 rounded-full mr-1"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs text-gray-600">
+                    {requestStatusLabels[status]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                innerRadius={60}
+                fill="#8884d8"
+                label={({ name, percent }) =>
+                  `${requestStatusLabels[name] || name}: ${percent}%`
+                }
+                labelLine={false}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
-                <YAxis />
-                <RechartsTooltip />
-                <Legend />
-                {Object.entries(statusColors).map(([status, color]) => (
-                  <Line
-                    type="monotone"
-                    key={status}
-                    dataKey={status}
-                    stroke={color}
-                    strokeWidth={2}
-                    activeDot={{ r: 6 }}
+                {pieData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={requestStatusColors[entry.name] || "#ccc"}
                   />
                 ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="flex-1 min-w-[250px] max-w-sm bg-white shadow rounded p-4 flex flex-col overflow-hidden">
-            <h2 className="text-lg font-bold text-gray-800 text-center w-full">
-              Requests by Type
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  label={({ percent }) => `${percent}%`}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={Colors[entry.name] || "#ccc"}
-                    />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  formatter={(value, name, props) => [
-                    `${value} (${props.payload.percent}%)`,
-                    name,
-                  ]}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value) => (
-                    <span style={{ color: Colors[value] || "#555" }}>
-                      {value}
-                    </span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+              </Pie>
+              <RechartsTooltip
+                formatter={(value, name, props) => [
+                  `${value} (${props.payload.percent}%)`,
+                  requestStatusLabels[name] || name,
+                ]}
+              />
+              <Legend
+                formatter={(value) => requestStatusLabels[value] || value}
+                wrapperStyle={{ paddingTop: 20 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
-    </>
+    </div>
   );
-}
+};
 
 export default Leave;
+  

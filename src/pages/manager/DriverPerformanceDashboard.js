@@ -13,6 +13,26 @@ import {
   Line,
 } from "recharts";
 
+const statusColors = {
+  in_progress: "#6366F1", // indigo
+  delayed: "#F59E0B", // amber
+  canceled: "#EF4444", // red
+  completed: "#10B981", // emerald
+  total: "#3B82F6", // blue
+};
+
+const destinationColors = [
+  "#6366F1",
+  "#10B981",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
+  "#EC4899",
+  "#14B8A6",
+  "#F97316",
+  "#64748B",
+];
+
 function DriverPerformance() {
   const { managerId } = useParams();
 
@@ -25,24 +45,23 @@ function DriverPerformance() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Fetching data for managerId:", managerId, "selectedDriver:", selectedDriver);
         const [kpiRes, departureRes, tripRes, driversRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/manager-performance/${managerId}/kpis`, {
-            params: { driver: selectedDriver || undefined },
-          }),
-          axios.get(`http://localhost:5000/api/manager-performance/${managerId}/departure-times`, {
-            params: { driver: selectedDriver || undefined },
-          }),
-          axios.get(`http://localhost:5000/api/manager-performance/${managerId}/trips-by-date`, {
-            params: { driver: selectedDriver || undefined },
-          }),
-          axios.get(`http://localhost:5000/api/manager-performance/${managerId}/drivers`),
+          axios.get(
+            `http://localhost:5000/api/manager-performance/${managerId}/kpis`,
+            { params: { driver: selectedDriver || undefined } }
+          ),
+          axios.get(
+            `http://localhost:5000/api/manager-performance/${managerId}/departure-times`,
+            { params: { driver: selectedDriver || undefined } }
+          ),
+          axios.get(
+            `http://localhost:5000/api/manager-performance/${managerId}/trips-by-date`,
+            { params: { driver: selectedDriver || undefined } }
+          ),
+          axios.get(
+            `http://localhost:5000/api/manager-performance/${managerId}/drivers`
+          ),
         ]);
-
-        console.log("KPIs data:", kpiRes.data);
-        console.log("Departure times data:", departureRes.data);
-        console.log("Trips by date data:", tripRes.data);
-        console.log("Drivers list:", driversRes.data);
 
         setKpiData(kpiRes.data);
         setDepartureData(departureRes.data);
@@ -56,12 +75,7 @@ function DriverPerformance() {
     fetchData();
   }, [managerId, selectedDriver]);
 
-  const handleChange = (e) => {
-    console.log("Driver selected:", e.target.value);
-    setSelectedDriver(e.target.value);
-  };
-
-  // Extraire les destinations uniques
+  // Extract unique destinations for BarChart
   const destinations = [...new Set(departureData.map((d) => d.destination))];
 
   const kpis = kpiData || {
@@ -72,7 +86,7 @@ function DriverPerformance() {
     total: 0,
   };
 
-  // Transformer les données pour BarChart: un objet par driver avec les avg departure par destination
+  // Transform departureData for BarChart
   const transformedData = [];
   departureData.forEach((entry) => {
     let existing = transformedData.find((d) => d.firstname === entry.firstname);
@@ -84,42 +98,63 @@ function DriverPerformance() {
     existing[entry.destination] = !isNaN(avgHour) ? parseFloat(avgHour.toFixed(2)) : 0;
   });
 
-  // Log des données transformées pour vérification
-  console.log("Transformed departure data for BarChart:", transformedData);
+  const handleChange = (e) => {
+    setSelectedDriver(e.target.value);
+  };
+
+  // Tooltip time formatter HH:mm
+  const timeFormatter = (value) => {
+    if (typeof value !== "number") return value;
+    const hours = Math.floor(value);
+    const minutes = Math.round((value - hours) * 60);
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="bg-white py-4 px-6 mb-6 rounded shadow">
-        <h1 className="text-center text-2xl font-bold text-gray-900">Driver Performance</h1>
+    <div className="px-6 py-8 space-y-8">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-6 px-6 rounded-lg shadow-lg mb-6">
+        <h1 className="text-center text-3xl font-bold text-white">Driver Performance</h1>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {Object.entries({
-          "Delivery in progress": kpis.in_progress,
-          "Delayed delivery": kpis.delayed,
-          "Canceled delivery": kpis.canceled,
-          "Completed delivery": kpis.completed,
-          "Total delivery": kpis.total,
-        }).map(([label, value], index) => (
-          <div key={index} className="bg-white p-4 rounded shadow text-center">
-            <h2 className="text-lg font-bold">{label}</h2>
-            <p className="text-3xl font-bold">{value || 0}</p>
+      {/* KPIs Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-6 mb-8">
+        {[
+          ["Delivery in progress", kpis.in_progress, statusColors.in_progress],
+          ["Delayed delivery", kpis.delayed, statusColors.delayed],
+          ["Canceled delivery", kpis.canceled, statusColors.canceled],
+          ["Completed delivery", kpis.completed, statusColors.completed],
+          ["Total delivery", kpis.total, statusColors.total],
+        ].map(([label, value, color], i) => (
+          <div
+            key={i}
+            className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col items-center justify-center"
+          >
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">{label}</h2>
+            <p className="text-4xl font-extrabold text-gray-900" style={{ color }}>
+              {value || 0}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white shadow rounded p-4 w-64">
-          <label htmlFor="slicer" className="block text-sm font-medium text-gray-700 mb-2">
+      {/* Filter + BarChart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Driver Filter */}
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+          <label
+            htmlFor="driverFilter"
+            className="block text-sm font-medium text-gray-700 mb-3"
+          >
             Filter by Driver
           </label>
           <select
-            id="slicer"
+            id="driverFilter"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
             value={selectedDriver}
             onChange={handleChange}
-            className="border rounded p-2 w-full"
           >
-            <option value="">-- Select Driver --</option>
+            <option value="">All Drivers</option>
             {drivers.map((d) => (
               <option key={d._id} value={d._id}>
                 {d.firstname} {d.last_name}
@@ -128,22 +163,31 @@ function DriverPerformance() {
           </select>
         </div>
 
-        <div className="col-span-2 bg-white p-4 rounded shadow">
-          <h2 className="text-center font-bold mb-2">Average Departure Time per Driver</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={transformedData}>
-              <XAxis dataKey="firstname" />
+        {/* BarChart: Average Departure Time */}
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6 border border-gray-100">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
+            Average Departure Time per Driver
+          </h2>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart
+              data={transformedData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <XAxis dataKey="firstname" tick={{ fill: "#6B7280" }} tickMargin={10} />
               <YAxis
-                label={{ value: "Avg Departure Hour", angle: -90, position: "insideLeft" }}
-                tickFormatter={(val) => parseFloat(val).toFixed(2)}
+                tick={{ fill: "#6B7280" }}
+                label={{
+                  value: "Avg Departure Hour",
+                  angle: -90,
+                  position: "insideLeft",
+                  fill: "#6B7280",
+                }}
+                tickFormatter={timeFormatter}
               />
               <Tooltip
                 formatter={(value, name) => {
                   if (isNaN(value)) return value;
-                  const floatVal = parseFloat(value);
-                  const hours = Math.floor(floatVal);
-                  const minutes = Math.round((floatVal - hours) * 60);
-                  return [`${hours}:${minutes.toString().padStart(2, "0")}`, name];
+                  return [timeFormatter(value), name];
                 }}
               />
               <Legend verticalAlign="top" />
@@ -153,7 +197,7 @@ function DriverPerformance() {
                   dataKey={dest}
                   name={dest}
                   stackId="a"
-                  fill={["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE"][idx % 5]}
+                  fill={destinationColors[idx % destinationColors.length]}
                 />
               ))}
             </BarChart>
@@ -161,14 +205,18 @@ function DriverPerformance() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-center font-bold mb-2">Trips by Date</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={tripData}>
-            <XAxis dataKey="year" />
-            <YAxis label={{ value: "Trip Count", angle: -90, position: "insideLeft" }} />
+      {/* LineChart: Trips by Date */}
+      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">Trips by Date</h2>
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart data={tripData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <XAxis dataKey="year" tick={{ fill: "#6B7280" }} tickMargin={10} />
+            <YAxis
+              tick={{ fill: "#6B7280" }}
+              label={{ value: "Trip Count", angle: -90, position: "insideLeft", fill: "#6B7280" }}
+            />
             <Tooltip />
-            <Line type="monotone" dataKey="trip_count" stroke="#007BFF" strokeWidth={2} />
+            <Line type="monotone" dataKey="trip_count" stroke="#3B82F6" strokeWidth={2} />
           </LineChart>
         </ResponsiveContainer>
       </div>
