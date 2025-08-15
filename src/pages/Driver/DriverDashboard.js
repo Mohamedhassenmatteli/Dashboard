@@ -2,13 +2,21 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import {
+  TruckIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ChartBarIcon,
+  MapIcon,
+  ClockIcon,
+  BoltIcon,
+} from "@heroicons/react/24/solid";
+import {
   ResponsiveContainer,
   LineChart,
   Line,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   CartesianGrid,
 } from "recharts";
 import {
@@ -19,32 +27,47 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
+const kpiIcons = {
+  total: TruckIcon,
+  completed: CheckCircleIcon,
+  canceled: XCircleIcon,
+  avg_mileage: ChartBarIcon,
+  totalDistance: MapIcon,
+  totalHours: ClockIcon,
+  totalFuel: BoltIcon,
+};
+
+const KpiCard = ({ title, value, type, bgColor = "bg-blue-500", unit }) => {
+  const Icon = kpiIcons[type];
+  return (
+    <div className="bg-white rounded-xl shadow-md p-3 flex items-center space-x-3 transition-transform transform hover:-translate-y-1 hover:shadow-lg">
+      <div className={`w-10 h-10 flex items-center justify-center rounded-full ${bgColor} text-white`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-0.5">{title}</span>
+        <span className="text-lg font-bold text-gray-900">
+          {value} {unit || ""}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 function DriverDashboard() {
   const { driverId } = useParams();
   const [driverInfo, setDriverInfo] = useState({});
   const [kpis, setKpis] = useState({
     canceled: 0,
-    avg_mileage: 0,
     completed: 0,
     total: 0,
+    totalDistance: 0,
+    totalHours: 0,
+    totalFuel: 0,
   });
   const [tripData, setTripData] = useState([]);
   const [groupBy, setGroupBy] = useState("year");
   const [mapData, setMapData] = useState([]);
-
-  const destinationCoords = {
-    Tunis: [36.8065, 10.1815],
-    Sfax: [34.7406, 10.7603],
-    Sousse: [35.8256, 10.6084],
-    Gabès: [33.8869, 10.1033],
-    Bizerte: [37.2746, 9.8739],
-    Kairouan: [35.6781, 10.1011],
-    Mahdia: [35.5035, 11.0622],
-    Tozeur: [33.9197, 8.1335],
-    Tataouine: [32.9297, 10.4515],
-    Manouba: [36.7993, 10.0865],
-    Béja: [36.7333, 9.1833],
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,41 +75,24 @@ function DriverDashboard() {
         const [infoRes, kpiRes, tripsRes, mapRes] = await Promise.all([
           axios.get(`http://localhost:5000/api/driver-dashboard/info/${driverId}`),
           axios.get(`http://localhost:5000/api/driver-dashboard/kpis`, { params: { driverId } }),
-          axios.get(`http://localhost:5000/api/driver-dashboard/trips-over-time`, {
-            params: { driverId, level: groupBy },
-          }),
+          axios.get(`http://localhost:5000/api/driver-dashboard/trips-over-time`, { params: { driverId, level: groupBy } }),
           axios.get(`http://localhost:5000/api/driver-dashboard/trips-by-destination`, { params: { driverId } }),
         ]);
 
         setDriverInfo(infoRes.data);
         setKpis(kpiRes.data);
 
-        setTripData(
-          tripsRes.data.map((row) => ({
-            label:
-              groupBy === "year"
-                ? new Date(row.period).getFullYear()
-                : groupBy === "month"
-                ? new Date(row.period).toLocaleString("default", {
-                    year: "numeric",
-                    month: "short",
-                  })
-                : new Date(row.period).toLocaleDateString(),
-            count: row.trip_count,
-          }))
-        );
+        setTripData(tripsRes.data.map(row => ({
+          label: row.period,
+          count: row.trip_count,
+        })));
 
-        setMapData(
-          mapRes.data.map((item) => {
-            const coords = destinationCoords[item.destination] || [34.0, 9.0];
-            return {
-              destination: item.destination,
-              count: parseInt(item.trip_count, 10),
-              latitude: coords[0],
-              longitude: coords[1],
-            };
-          })
-        );
+        setMapData(mapRes.data.map(item => ({
+          destination: item.destination,
+          count: parseInt(item.trip_count, 10),
+          latitude: item.latitude ?? 34.0,
+          longitude: item.longitude ?? 9.0,
+        })));
       } catch (err) {
         console.error("Error loading driver dashboard data", err);
       }
@@ -96,19 +102,13 @@ function DriverDashboard() {
   }, [driverId, groupBy]);
 
   const groupOptions = ["year", "month", "day"];
-
   const handleDrillDown = () => {
     const idx = groupOptions.indexOf(groupBy);
-    if (idx < groupOptions.length - 1) {
-      setGroupBy(groupOptions[idx + 1]);
-    }
+    if (idx < groupOptions.length - 1) setGroupBy(groupOptions[idx + 1]);
   };
-
   const handleDrillUp = () => {
     const idx = groupOptions.indexOf(groupBy);
-    if (idx > 0) {
-      setGroupBy(groupOptions[idx - 1]);
-    }
+    if (idx > 0) setGroupBy(groupOptions[idx - 1]);
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -118,7 +118,7 @@ function DriverDashboard() {
           <p className="font-bold text-gray-800">{label}</p>
           <div className="space-y-1 mt-2">
             {payload.map((entry, index) => (
-              <div key={`tooltip-item-${index}`} className="flex items-center">
+              <div key={index} className="flex items-center">
                 <div className="w-3 h-3 rounded-full mr-2 bg-blue-500" />
                 <span className="text-gray-600 font-medium">Trips: </span>
                 <span className="font-bold ml-1">{entry.value}</span>
@@ -135,183 +135,150 @@ function DriverDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-white">
-              {`${driverInfo.FirstName || driverInfo.firstname || ""} ${driverInfo.LastName || driverInfo.last_name || ""}`}
-            </h1>
-            <div className="flex items-center space-x-4">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                Driver ID: {driverId}
-              </span>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">
+            {`${driverInfo.FirstName || driverInfo.firstname || ""} ${driverInfo.LastName || driverInfo.last_name || ""}`}
+          </h1>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            Driver ID: {driverId}
+          </span>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <KpiCard 
-            title="Total Deliveries" 
-            value={kpis.total} 
-            icon="🚛" 
-            color="bg-blue-100 text-blue-600"
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+          <KpiCard title="Total Deliveries" value={kpis.total} type="total" bgColor="bg-blue-500" />
+          <KpiCard title="Completed" value={kpis.completed} type="completed" bgColor="bg-green-500" />
+          <KpiCard title="Canceled" value={kpis.canceled} type="canceled" bgColor="bg-red-500" />
+          <KpiCard title="Total Distance" value={Number(kpis.totalDistance)} type="totalDistance" bgColor="bg-indigo-500" unit="km" />
+          <KpiCard
+            title="Total Hours"
+            value={kpis.totalHours || "0h 0m"} // pass string directly
+            type="totalHours"
+            bgColor="bg-yellow-500"
           />
-          <KpiCard 
-            title="Completed" 
-            value={kpis.completed} 
-            icon="✅" 
-            color="bg-green-100 text-green-600"
-          />
-          <KpiCard 
-            title="Canceled" 
-            value={kpis.canceled} 
-            icon="❌" 
-            color="bg-red-100 text-red-600"
-          />
-          <KpiCard 
-            title="Avg Mileage" 
-            value={Number(kpis.avg_mileage).toFixed(2)} 
-            icon="📊" 
-            color="bg-purple-100 text-purple-600"
-          />
+          <KpiCard title="Fuel Consumption" value={Number(kpis.totalFuel)} type="totalFuel" bgColor="bg-orange-500" unit="L" />
         </div>
 
-        {/* Time Controls */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 sm:mb-0">
-              Trip Analytics
-            </h2>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-500">
-                Group by: {groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}
-              </span>
-              <button
-                onClick={handleDrillUp}
-                disabled={groupBy === "year"}
-                className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                  groupBy === "year"
-                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="-ml-1 mr-2 h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Drill Up
-              </button>
-              <button
-                onClick={handleDrillDown}
-                disabled={groupBy === "day"}
-                className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                  groupBy === "day"
-                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="-ml-1 mr-2 h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Drill Down
-              </button>
-            </div>
-          </div>
+
+        {/* Trip Analytics Controls */}
+        <div className="bg-white rounded-xl shadow p-3 mb-6 border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2 sm:mb-0">Trip Analytics</h2>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-500">
+            Group by: <span className="text-gray-700 font-semibold">{groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+          </span>
+          <button
+            onClick={handleDrillUp}
+            disabled={groupBy === "year"}
+            className="px-2 py-1 rounded bg-blue-600 text-white disabled:bg-gray-200"
+          >
+            Drill Up
+          </button>
+          <button
+            onClick={handleDrillDown}
+            disabled={groupBy === "day"}
+            className="px-2 py-1 rounded bg-blue-600 text-white disabled:bg-gray-200"
+          >
+            Drill Down
+          </button>
         </div>
+      </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Trip Count Chart */}
-          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Trip Count Over Time
-            </h2>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={tripData}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+          <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Trip Count Over Time</h2>
+           <ResponsiveContainer width="100%" height={400}>
+              <LineChart
+                data={tripData}
+                margin={{ top: 20, right: 30, left: 0, bottom: 10 }}
+              >
+                {/* Background grid */}
+                <CartesianGrid strokeDasharray="4 4" stroke="#E5E7EB" vertical={false} />
+                
+                {/* X axis */}
                 <XAxis 
                   dataKey="label" 
-                  tick={{ fill: '#6B7280' }}
-                  tickMargin={10}
+                  tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }} 
+                  tickMargin={10} 
+                  axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                 />
-                <YAxis
-                  tick={{ fill: '#6B7280' }}
-                  label={{
-                    value: "Trips",
-                    angle: -90,
-                    position: "insideLeft",
-                    fill: "#6B7280",
-                  }}
+                
+                {/* Y axis */}
+                <YAxis 
+                  tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
+                  axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                  tickLine={false}
+                  label={{ value: "Trips", angle: -90, position: "insideLeft", fill: "#6B7280", fontSize: 12, fontWeight: 500 }}
                 />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: "#3B82F6" }}
-                  activeDot={{ r: 6, stroke: "#3B82F6", strokeWidth: 2 }}
+                
+                {/* Tooltip */}
+                <Tooltip 
+                  content={<CustomTooltip />} 
+                  cursor={{ stroke: "#3B82F6", strokeWidth: 2, opacity: 0.1 }}
+                />
+                
+                {/* Line */}
+                <Line 
+                  type="monotone" 
+                  dataKey="count" 
+                  stroke="#3B82F6" 
+                  strokeWidth={3} 
+                  dot={{ r: 5, fill: "#3B82F6", stroke: "#fff", strokeWidth: 1 }}
+                  activeDot={{ r: 7, stroke: "#3B82F6", strokeWidth: 2, fill: "#fff" }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* Map */}
-          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Trips by Destination
-            </h2>
+         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Trips by Destination</h2>
             <MapContainer
-              center={[34.0, 9.0]}
-              zoom={6}
-              style={{ height: "400px", width: "100%", borderRadius: "0.5rem" }}
+              center={[36.8, 10.1]}
+              zoom={7}
+              scrollWheelZoom={true}
+              style={{ height: "450px", width: "100%", borderRadius: "0.75rem" }}
             >
               <TileLayer
-                attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; OpenStreetMap contributors'
               />
-              {mapData.map((item, idx) => (
-                <CircleMarker
-                  key={idx}
-                  center={[item.latitude, item.longitude]}
-                  radius={Math.min(item.count * 2 + 5, 30)}
-                  fillOpacity={0.7}
-                  stroke={true}
-                  color="#3B82F6"
-                  weight={1.5}
-                  fillColor="#3B82F6"
-                >
-                  <LeafletTooltip 
-                    direction="top" 
-                    offset={[0, -10]} 
-                    className="font-sans"
-                  >
-                    <div className="font-bold text-gray-800">{item.destination}</div>
-                    <div className="text-sm">
-                      <span className="font-medium">Trips:</span> {item.count}
-                    </div>
-                  </LeafletTooltip>
-                </CircleMarker>
-              ))}
+
+              {mapData
+                .filter(item => item.latitude != null && item.longitude != null)
+                .map((item, idx) => {
+                  const lat = parseFloat(item.latitude);
+                  const lng = parseFloat(item.longitude);
+                  const trips = parseInt(item.count || 0, 10);
+
+                  // dynamic radius scaling
+                  const radius = Math.min(20, 5 + Math.sqrt(trips) * 2);
+
+                  return (
+                    <CircleMarker
+                      key={idx}
+                      center={[lat, lng]}
+                      radius={radius}
+                      fillColor="#3B82F6"
+                      color="#1E40AF"
+                      fillOpacity={0.6}
+                      stroke={true}
+                      weight={1.5}
+                    >
+                      <LeafletTooltip direction="top" offset={[0, -12]} opacity={0.9} permanent={false}>
+                        <div className="bg-white p-2 rounded-lg shadow-lg border border-gray-200">
+                          <div className="font-bold text-sm text-gray-800">{item.destination}</div>
+                          <div className="text-xs text-gray-600 mt-1">Trips: {trips}</div>
+                          <div className="text-xs text-gray-500">Coords: {lat.toFixed(4)}, {lng.toFixed(4)}</div>
+                        </div>
+                      </LeafletTooltip>
+                    </CircleMarker>
+                  );
+                })}
             </MapContainer>
           </div>
         </div>
@@ -319,21 +286,5 @@ function DriverDashboard() {
     </div>
   );
 }
-
-const KpiCard = ({ title, value, icon, color }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 relative overflow-hidden">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
-        </div>
-        <div className={`${color} rounded-lg p-3 text-xl`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default DriverDashboard;

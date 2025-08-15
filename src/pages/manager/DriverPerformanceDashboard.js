@@ -11,6 +11,7 @@ import {
   Legend,
   LineChart,
   Line,
+  CartesianGrid,
 } from "recharts";
 
 const statusColors = {
@@ -98,11 +99,6 @@ function DriverPerformance() {
     existing[entry.destination] = !isNaN(avgHour) ? parseFloat(avgHour.toFixed(2)) : 0;
   });
 
-  const handleChange = (e) => {
-    setSelectedDriver(e.target.value);
-  };
-
-  // Tooltip time formatter HH:mm
   const timeFormatter = (value) => {
     if (typeof value !== "number") return value;
     const hours = Math.floor(value);
@@ -110,115 +106,228 @@ function DriverPerformance() {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   };
 
+  const CustomBarTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 shadow rounded border border-gray-200 text-xs md:text-sm">
+          <p className="font-bold text-gray-800">{label}</p>
+          <div className="mt-1 space-y-1">
+            {payload.map((entry, index) => (
+              <div key={index} className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: entry.color }} />
+                <span className="text-gray-600 font-medium">{entry.name}: </span>
+                <span className="font-bold ml-1">{timeFormatter(entry.value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomLineTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 shadow rounded border border-gray-200 text-xs md:text-sm">
+          <p className="font-bold text-gray-800">{label}</p>
+          <div className="mt-1 space-y-1">
+            {payload.map((entry, index) => (
+              <div key={index} className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: entry.color }} />
+                <span className="text-gray-600 font-medium">Trips: </span>
+                <span className="font-bold ml-1">{entry.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="px-6 py-8 space-y-8">
+    <div>
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-6 px-6 rounded-lg shadow-lg mb-6">
-        <h1 className="text-center text-3xl font-bold text-white">Driver Performance</h1>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-2 px-4 mb-4 rounded-lg shadow-md flex-shrink-0">
+        <h1 className="text-center text-xl font-semibold text-white">Driver Performance</h1>
+        <p className="text-center text-blue-100 mt-1 text-xs md:text-sm">
+          Monitor and analyze driver performance metrics
+        </p>
       </div>
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 mb-4 px-3 sm:px-6">
+                  {/* Driver slicer */}
+          <div className="sm:col-span-2 bg-white rounded-xl shadow-md p-3 border border-gray-100">
+                    <label
+                      htmlFor="driverFilter"
+                      className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Filter by Driver
+                    </label>
+                  <select
+                      id="driverFilter"
+                      value={selectedDriver}
+                      onChange={(e) => setSelectedDriver(e.target.value)}
+                      className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-xs sm:text-sm"
+                    >
+              <option value="">All Drivers</option>
+              {drivers.map((d) => (
+                <option key={d._id} value={d._id}> {/* send _id instead of FirstName */}
+                  {d.FirstName} {d.LastName}
+                </option>
+              ))}
+            </select>
+        </div>
+
+        {/* KPI cards */}
         {[
-          ["Delivery in progress", kpis.in_progress, statusColors.in_progress],
-          ["Delayed delivery", kpis.delayed, statusColors.delayed],
-          ["Canceled delivery", kpis.canceled, statusColors.canceled],
-          ["Completed delivery", kpis.completed, statusColors.completed],
-          ["Total delivery", kpis.total, statusColors.total],
-        ].map(([label, value, color], i) => (
+          ["in_progress", "In Progress", "M5 13l4 4L19 7", statusColors.in_progress],
+          ["completed", "Completed", "M5 13l4 4L19 7", statusColors.completed],
+          ["delayed", "Delayed", "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", statusColors.delayed],
+          ["canceled", "Canceled", "M6 18L18 6M6 6l12 12", statusColors.canceled],
+        ].map(([key, title, iconPath, color]) => (
           <div
-            key={i}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col items-center justify-center"
+            key={key}
+            className="bg-white rounded-xl shadow-md p-3 border border-gray-100 flex items-center justify-between"
           >
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">{label}</h2>
-            <p className="text-4xl font-extrabold text-gray-900" style={{ color }}>
-              {value || 0}
-            </p>
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-gray-500">{title}</p>
+              <p className="text-lg sm:text-xl font-semibold text-gray-800 mt-0.5">
+                {kpis[key] || 0}
+              </p>
+            </div>
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500"
+              fill="none"
+              stroke={color}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={iconPath} />
+            </svg>
           </div>
         ))}
       </div>
 
-      {/* Filter + BarChart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Driver Filter */}
-        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-          <label
-            htmlFor="driverFilter"
-            className="block text-sm font-medium text-gray-700 mb-3"
-          >
-            Filter by Driver
-          </label>
-          <select
-            id="driverFilter"
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-            value={selectedDriver}
-            onChange={handleChange}
-          >
-            <option value="">All Drivers</option>
-            {drivers.map((d) => (
-              <option key={d._id} value={d._id}>
-                {d.firstname} {d.last_name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* BarChart: Average Departure Time */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6 border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4 mb-4 px-2">
+        {/* BarChart */}
+        <div className="bg-white rounded-lg shadow p-2 border border-gray-100">
+          <h2 className="text-base md:text-lg font-bold text-gray-800 mb-2">
             Average Departure Time per Driver
           </h2>
-          <ResponsiveContainer width="100%" height={350}>
+          <div className="bg-gray-50 rounded p-1">
+          <ResponsiveContainer width="100%" height={250}>
             <BarChart
               data={transformedData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 15, right: 20, left: 10, bottom: 5 }}
+              barCategoryGap="20%"
+              barGap={2}
             >
-              <XAxis dataKey="firstname" tick={{ fill: "#6B7280" }} tickMargin={10} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.4} />
+              <XAxis
+                dataKey="firstname"
+                tick={{ fill: "#6B7280", fontSize: 11 }}
+                tickMargin={8}
+                interval={0}
+                angle={-30}
+                textAnchor="end"
+                height={60}
+              />
               <YAxis
-                tick={{ fill: "#6B7280" }}
+                tick={{ fill: "#6B7280", fontSize: 11 }}
+                tickCount={6}
                 label={{
-                  value: "Avg Departure Hour",
+                  value: "Avg Departure Time",
                   angle: -90,
                   position: "insideLeft",
                   fill: "#6B7280",
+                  fontSize: 12,
+                  offset: 10,
                 }}
                 tickFormatter={timeFormatter}
+                domain={['dataMin - 1', 'dataMax + 1']}
               />
               <Tooltip
-                formatter={(value, name) => {
-                  if (isNaN(value)) return value;
-                  return [timeFormatter(value), name];
-                }}
+                content={<CustomBarTooltip />}
+                cursor={{ fill: "#f3f4f6" }}
+                wrapperStyle={{ outline: "none" }}
               />
-              <Legend verticalAlign="top" />
-              {destinations.map((dest, idx) => (
-                <Bar
-                  key={dest}
-                  dataKey={dest}
-                  name={dest}
-                  stackId="a"
-                  fill={destinationColors[idx % destinationColors.length]}
-                />
-              ))}
+              <Legend
+                layout="horizontal"
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ fontSize: 12, paddingTop: 8, flexWrap: 'wrap' }}
+              />
+              {destinations.map((dest, idx) => {
+                const legendName = dest.split(" ").slice(0, 2).join(" ");
+                return (
+                  <Bar
+                    key={dest}
+                    dataKey={dest}
+                    name={legendName}
+                    stackId="a"
+                    fill={destinationColors[idx % destinationColors.length]}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                  />
+                );
+              })}
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
 
-      {/* LineChart: Trips by Date */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">Trips by Date</h2>
-        <ResponsiveContainer width="100%" height={350}>
-          <LineChart data={tripData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <XAxis dataKey="year" tick={{ fill: "#6B7280" }} tickMargin={10} />
-            <YAxis
-              tick={{ fill: "#6B7280" }}
-              label={{ value: "Trip Count", angle: -90, position: "insideLeft", fill: "#6B7280" }}
-            />
-            <Tooltip />
-            <Line type="monotone" dataKey="trip_count" stroke="#3B82F6" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* LineChart */}
+        <div className="bg-white rounded-lg shadow p-2 border border-gray-100">
+          <h2 className="text-base md:text-lg font-bold text-gray-800 mb-2">Trips by Date</h2>
+          <div className="bg-gray-50 rounded p-1">
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart
+                data={tripData}
+                margin={{ top: 15, right: 20, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <XAxis
+                  dataKey="year"
+                  tick={{ fill: "#6B7280", fontSize: 11 }}
+                  tickMargin={8}
+                  interval="preserveEnd"
+                  minTickGap={15}
+                />
+                <YAxis
+                  tick={{ fill: "#6B7280", fontSize: 11 }}
+                  label={{
+                    value: "Count of trips",
+                    angle: -90,
+                    position: "insideLeft",
+                    fill: "#6B7280",
+                    fontSize: 12,
+                    offset: 10,
+                  }}
+                  tickCount={6}
+                  allowDecimals={false}
+                  domain={['dataMin - 1', 'dataMax + 1']}
+                />
+                <Tooltip
+                  content={<CustomLineTooltip />}
+                  cursor={{ stroke: "#93c5fd", strokeWidth: 2, opacity: 0.2 }}
+                  wrapperStyle={{ outline: "none" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="trip_count"
+                  stroke="#3B82F6"
+                  strokeWidth={2.5}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: "#2563eb", fill: "#3B82F6" }}
+                  dot={{ r: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );

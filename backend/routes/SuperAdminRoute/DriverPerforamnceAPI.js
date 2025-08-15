@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/user");   // user model
-const Trip = require("../models/trip");   // trip model
+const User = require("../../models/user");
+const Trip = require("../../models/trip");
 
 // GET KPIs with optional driver filter
 router.get("/kpis", async (req, res) => {
@@ -9,9 +9,8 @@ router.get("/kpis", async (req, res) => {
   try {
     const matchStage = {};
     if (driver && driver.trim() !== "") {
-      // Find drivers matching firstname filter
       const drivers = await User.find({ FirstName: driver.trim() }, { _id: 1 }).lean();
-      if (drivers.length === 0) return res.json({ in_progress: 0, delayed: 0, canceled: 0, completed: 0, total: 0 });
+      if (!drivers.length) return res.json({ in_progress: 0, delayed: 0, canceled: 0, completed: 0, total: 0 });
       matchStage.driver = { $in: drivers.map(d => d._id) };
     }
 
@@ -20,18 +19,10 @@ router.get("/kpis", async (req, res) => {
       {
         $group: {
           _id: null,
-          in_progress: {
-            $sum: { $cond: [{ $eq: ["$statusTrip", "in_progress"] }, 1, 0] }
-          },
-          delayed: {
-            $sum: { $cond: [{ $eq: ["$statusTrip", "delayed"] }, 1, 0] }
-          },
-          canceled: {
-            $sum: { $cond: [{ $eq: ["$statusTrip", "canceled"] }, 1, 0] }
-          },
-          completed: {
-            $sum: { $cond: [{ $eq: ["$statusTrip", "completed"] }, 1, 0] }
-          },
+          in_progress: { $sum: { $cond: [{ $eq: ["$statusTrip", "in_progress"] }, 1, 0] } },
+          delayed: { $sum: { $cond: [{ $eq: ["$statusTrip", "delayed"] }, 1, 0] } },
+          canceled: { $sum: { $cond: [{ $eq: ["$statusTrip", "failed"] }, 1, 0] } },
+          completed: { $sum: { $cond: [{ $eq: ["$statusTrip", "completed"] }, 1, 0] } },
           total: { $sum: 1 }
         }
       }
@@ -52,7 +43,7 @@ router.get("/departure-times", async (req, res) => {
     const matchStage = {};
     if (driver && driver.trim() !== "") {
       const drivers = await User.find({ FirstName: driver.trim() }, { _id: 1 }).lean();
-      if (drivers.length === 0) return res.json([]);
+      if (!drivers.length) return res.json([]);
       matchStage.driver = { $in: drivers.map(d => d._id) };
     }
 
@@ -67,15 +58,23 @@ router.get("/departure-times", async (req, res) => {
         }
       },
       { $unwind: "$driver" },
-      // Convert departureTime string "HH:mm" to numeric hour + fraction
       {
         $addFields: {
           departure_hour: {
-            $toInt: { $arrayElemAt: [{ $split: ["$departureTime", ":"] }, 0] }
+            $cond: [
+              { $and: [{ $ne: ["$departureTime", null] }, { $ne: ["$departureTime", ""] }] },
+              { $toInt: { $arrayElemAt: [{ $split: ["$departureTime", ":"] }, 0] } },
+              0
+            ]
           },
           departure_minute: {
-            $toInt: { $arrayElemAt: [{ $split: ["$departureTime", ":"] }, 1] }
-          }
+            $cond: [
+              { $and: [{ $ne: ["$departureTime", null] }, { $ne: ["$departureTime", ""] }] },
+              { $toInt: { $arrayElemAt: [{ $split: ["$departureTime", ":"] }, 1] } },
+              0
+            ]
+          },
+          destinationName: "$destination.name" // extract name from destination object
         }
       },
       {
@@ -83,7 +82,7 @@ router.get("/departure-times", async (req, res) => {
           _id: {
             FirstName: "$driver.FirstName",
             LastName: "$driver.LastName",
-            destination: "$destination"
+            destination: "$destinationName"
           },
           avgdeparturehour: {
             $avg: { $add: ["$departure_hour", { $divide: ["$departure_minute", 60] }] }
@@ -110,6 +109,7 @@ router.get("/departure-times", async (req, res) => {
   }
 });
 
+
 // GET Trips by date (filtered)
 router.get("/trips-by-date", async (req, res) => {
   const driver = req.query.driver;
@@ -118,7 +118,7 @@ router.get("/trips-by-date", async (req, res) => {
     const matchStage = {};
     if (driver && driver.trim() !== "") {
       const drivers = await User.find({ FirstName: driver.trim() }, { _id: 1 }).lean();
-      if (drivers.length === 0) return res.json([]);
+      if (!drivers.length) return res.json([]);
       matchStage.driver = { $in: drivers.map(d => d._id) };
     }
 
@@ -150,7 +150,6 @@ router.get("/trips-by-date", async (req, res) => {
 // GET Drivers list (distinct)
 router.get("/drivers", async (req, res) => {
   try {
-    // Find users with role 'driver' who have trips
     const driversWithTrips = await Trip.aggregate([
       {
         $lookup: {
@@ -161,9 +160,7 @@ router.get("/drivers", async (req, res) => {
         }
       },
       { $unwind: "$driverInfo" },
-      {
-        $match: { "driverInfo.role": "driver" }
-      },
+      { $match: { "driverInfo.role": "driver" } },
       {
         $group: {
           _id: "$driverInfo._id",
@@ -171,9 +168,7 @@ router.get("/drivers", async (req, res) => {
           LastName: { $first: "$driverInfo.LastName" }
         }
       },
-      {
-        $sort: { FirstName: 1 }
-      }
+      { $sort: { FirstName: 1 } }
     ]);
 
     res.json(driversWithTrips);

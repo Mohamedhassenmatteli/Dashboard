@@ -4,12 +4,11 @@ const messageSchema = new mongoose.Schema({
   chatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat', required: true },
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true },
-  seenBy: { type: [String], default: null }, // assuming an array of userIds who have seen the message; adjust if different
-  reactions: { type: [mongoose.Schema.Types.Mixed], default: [] }, // generic array, change schema if needed
+  seen: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 }, {
-  collection: 'message',
+  collection: 'messages',
 });
 
-module.exports = mongoose.model('Message', messageSchema);
+module.exports = mongoose.model('messages', messageSchema);

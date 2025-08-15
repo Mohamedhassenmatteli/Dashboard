@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     // Replace the following with your MongoDB connection string
-    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/Camion_navigation';
+    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/DataBase';
 
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,

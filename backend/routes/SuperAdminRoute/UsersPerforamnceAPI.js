@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const Message = require("../models/message");
-const User = require("../models/user"); // all users: drivers, managers, super_admins
+const Message = require("../../models/message");
+const User = require("../../models/user"); // all users: drivers, managers, super_admins
+
 
 router.get("/insights", async (req, res) => {
   try {
@@ -26,9 +27,7 @@ router.get("/insights", async (req, res) => {
           count: { $sum: 1 },
         },
       },
-      {
-        $sort: { "_id": 1 },
-      },
+      { $sort: { "_id": 1 } },
       {
         $project: {
           month: {
@@ -50,10 +49,10 @@ router.get("/insights", async (req, res) => {
                   "Dec",
                 ],
               },
-              in: { $arrayElemAt: ["$$monthsInString", "$_id"] },
+              in: { $arrayElemAt: ["$$monthsInString", { $ifNull: ["$_id", 0] }] },
             },
           },
-          count: 1,
+          count: { $ifNull: ["$count", 0] },
           _id: 0,
         },
       },
@@ -70,8 +69,8 @@ router.get("/insights", async (req, res) => {
       },
       {
         $project: {
-          country: "$_id",
-          total_count: 1,
+          country: { $ifNull: ["$_id", "Unknown"] },
+          total_count: { $ifNull: ["$total_count", 0] },
           _id: 0,
         },
       },
@@ -82,13 +81,13 @@ router.get("/insights", async (req, res) => {
       {
         $group: {
           _id: "$role",
-          active: { $sum: { $cond: ["$isActive", 1, 0] } },
-          inactive: { $sum: { $cond: [{ $not: "$isActive" }, 1, 0] } },
+          active: { $sum: { $cond: [{ $eq: ["$isActive", true] }, 1, 0] } },
+          inactive: { $sum: { $cond: [{ $eq: ["$isActive", false] }, 1, 0] } },
         },
       },
       {
         $project: {
-          role: "$_id",
+          role: { $ifNull: ["$_id", "Unknown"] },
           active: 1,
           inactive: 1,
           _id: 0,
@@ -144,13 +143,13 @@ router.get("/insights", async (req, res) => {
     const mustChangePassword = mustChangePasswordArr[0]?.mustChangePercentage || 0;
 
     res.json({
-      messages: messagesCount,
-      activeUsers: activeDriversCount,
-      managers: managersCount,
-      drivers: driversCount,
-      usersPerMonth,
-      usersPerCountry,
-      activeInactiveByRole,
+      messages: messagesCount || 0,
+      activeUsers: activeDriversCount || 0,
+      managers: managersCount || 0,
+      drivers: driversCount || 0,
+      usersPerMonth: usersPerMonth || [],
+      usersPerCountry: usersPerCountry || [],
+      activeInactiveByRole: activeInactiveByRole || [],
       mustChangePassword: parseFloat(mustChangePassword.toFixed(1)),
     });
   } catch (err) {

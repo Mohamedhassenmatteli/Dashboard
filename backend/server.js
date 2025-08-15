@@ -2,18 +2,19 @@ const express = require('express');
 const cors = require('cors');           // <-- import cors here
 const connectDB = require('./db');
 // Super admin API
-const DriverPerforRoutes = require('./routes/DriverPerfAPI');
-const deliveryRoute = require('./routes/DeliveryAPI');
-const fleetRoutes = require('./routes/FleetAPI');
-const leaveRoutes = require('./routes/CongesAPI');
-const UserRoutes = require('./routes/UsersAPI');
+const DriverPerforRoutes = require('./routes/SuperAdminRoute/DriverPerforamnceAPI');
+const deliveryRoute = require('./routes/SuperAdminRoute/DeliveryPerforamnceAPI');
+const fleetRoutes = require('./routes/SuperAdminRoute/FleetPerforamnceAPI');
+const leaveRoutes = require('./routes/SuperAdminRoute/CongesPerformanceAPI');
+const UserRoutes = require('./routes/SuperAdminRoute/UsersPerforamnceAPI');
 
 // Manager API
-const DriverPrformanceRoute = require("./routes/DriverPerformanceAPI")
-const DriverConges  = require("./routes/DriverCongesAPI")
+const DriverPrformanceRoute = require("./routes/ManagerRoute/DriverPerformanceAPI")
+const DriverConges  = require("./routes/ManagerRoute/DriverCongesAPI")
+const TruckPerforamnce = require("./routes/ManagerRoute/TruckPerformanceAPI")
 
 // Driver API
-const driverDashboard = require("./routes/DriverDashboardAPI")
+const driverDashboard = require("./routes/DriverRoute/DriverDashboardAPI")
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/api/fleet", fleetRoutes);
 app.use('/api/leave',leaveRoutes);
 app.use('/api/superadmin',UserRoutes)
 app.use('/api/manager-performance',DriverPrformanceRoute)
+app.use('/api/truck',TruckPerforamnce)
 app.use('/api/leave/manager',DriverConges)
 app.use('/api/driver-dashboard/',driverDashboard)
 

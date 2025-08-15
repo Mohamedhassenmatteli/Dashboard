@@ -1,21 +1,19 @@
-const React = require("react");
-const { useParams, Outlet } = require("react-router-dom");
-const SidebarManager = require("../components/ManagerSidebar");
+import React from "react";
+import { useParams, Outlet } from "react-router-dom";
+import SidebarManager from "../components/ManagerSidebar";
 
 function ManagerLayout() {
-  var params = useParams();
-  var managerId = params.managerId;
+  const params = useParams();
+  const managerId = params.managerId;
 
-  return React.createElement(
-    "div",
-    { className: "flex min-h-screen bg-gray-100" },
-    React.createElement(SidebarManager, { managerId: managerId }),
-    React.createElement(
-      "main",
-      { className: "flex-1 p-6 overflow-auto" },
-      React.createElement(Outlet, null)
-    )
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      <SidebarManager managerId={managerId} />
+      <main className="flex-1 p-6 overflow-auto">
+        <Outlet />
+      </main>
+    </div>
   );
 }
 
-module.exports = ManagerLayout;
+export default ManagerLayout;
