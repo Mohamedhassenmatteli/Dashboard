@@ -2,9 +2,10 @@ const express = require("express");
 const router = express.Router();
 const User = require("../../models/user");
 const Trip = require("../../models/trip");
-
+const { authenticateToken, authorizeRoles } = require("../../middleware/authMiddleware");
+// const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth"); FOR TESTING
 // GET KPIs with optional driver filter
-router.get("/kpis", async (req, res) => {
+router.get("/kpis", authenticateToken, authorizeRoles("super_admin"),  async (req, res) => {
   const driver = req.query.driver;
   try {
     const matchStage = {};
@@ -36,7 +37,8 @@ router.get("/kpis", async (req, res) => {
 });
 
 // GET Average Departure Time per driver (filtered)
-router.get("/departure-times", async (req, res) => {
+router.get("/departure-times",  authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   const driver = req.query.driver;
 
   try {
@@ -111,7 +113,8 @@ router.get("/departure-times", async (req, res) => {
 
 
 // GET Trips by date (filtered)
-router.get("/trips-by-date", async (req, res) => {
+router.get("/trips-by-date",  authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   const driver = req.query.driver;
 
   try {
@@ -148,7 +151,8 @@ router.get("/trips-by-date", async (req, res) => {
 });
 
 // GET Drivers list (distinct)
-router.get("/drivers", async (req, res) => {
+router.get("/drivers",authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   try {
     const driversWithTrips = await Trip.aggregate([
       {

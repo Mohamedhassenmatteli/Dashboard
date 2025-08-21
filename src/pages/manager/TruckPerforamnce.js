@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -15,7 +14,7 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+const COLORS = ["#0088FE", "#00C49F", "#ff2828ff", "#FF8042", "#8884D8"];
 
 const icons = {
   distance: (
@@ -99,7 +98,6 @@ const KpiCard = ({ title, value, icon, trend }) => (
 );
 
 const TruckPerformanceManager = () => {
-  const { managerId } = useParams();
   const [trucks, setTrucks] = useState([]);
   const [error, setError] = useState(null);
   
@@ -166,7 +164,7 @@ const TruckPerformanceManager = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <KpiCard
           title="Total Distance"
-          value={`${(performanceMetrics.totalDistance / 1000).toFixed(1)}k km`}
+          value={`${(performanceMetrics.totalDistance / 1000).toFixed(1)} km`}
           icon={icons.distance}
           
         />

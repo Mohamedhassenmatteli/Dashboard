@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const ObjectId = mongoose.Types.ObjectId;
-
+const { authenticateToken, authorizeRoles } = require("../../middleware/authMiddleware");
+//const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth");  FOR TESTING
 const User = require("../../models/user");
 const TimeOff = require("../../models/conges");
 
@@ -12,13 +13,14 @@ function toObjectId(id) {
 }
 
 // ================== INSIGHT ==================
-router.get("/insight", async (req, res) => {
+router.get("/insight", authenticateToken , authorizeRoles("manager") , async (req, res) => {
   try {
-    const { driver, managerId } = req.query;
-    const managerObjectId = toObjectId(managerId);
+    
+    const managerObjectId = toObjectId(req.user._id);
     if (!managerObjectId) {
-      return res.status(400).json({ error: "Invalid or missing managerId" });
+      return res.status(400).json({ error: "Invalid manager ID" });
     }
+    const { driver} = req.query;
 
     // Find drivers for this manager
     let driverFilter = { createdBy: managerObjectId, role: "driver" };
@@ -59,13 +61,13 @@ router.get("/insight", async (req, res) => {
 });
 
 // ================== DRILL ==================
-router.get("/drill", async (req, res) => {
+router.get("/drill", authenticateToken , authorizeRoles("manager") ,  async (req, res) => {
   try {
-    const { driver, managerId, level = "year", value } = req.query;
-    const managerObjectId = toObjectId(managerId);
+    const managerObjectId = toObjectId(req.user._id);
     if (!managerObjectId) {
-      return res.status(400).json({ error: "Invalid or missing managerId" });
+      return res.status(400).json({ error: "Invalid manager ID" });
     }
+    const { driver, level = "year", value } = req.query;
 
     let driverFilter = { createdBy: managerObjectId, role: "driver" };
     if (driver) driverFilter.FirstName = driver;
@@ -121,13 +123,13 @@ router.get("/drill", async (req, res) => {
 });
 
 // ================== PIE ==================
-router.get("/pie", async (req, res) => {
+router.get("/pie", authenticateToken , authorizeRoles("manager") ,  async (req, res) => {
   try {
-    const { driver, managerId } = req.query;
-    const managerObjectId = toObjectId(managerId);
+     const managerObjectId = toObjectId(req.user._id);
     if (!managerObjectId) {
-      return res.status(400).json({ error: "Invalid or missing managerId" });
+      return res.status(400).json({ error: "Invalid manager ID" });
     }
+    const { driver } = req.query;
 
     let driverFilter = { createdBy: managerObjectId, role: "driver" };
     if (driver) driverFilter.FirstName = driver;

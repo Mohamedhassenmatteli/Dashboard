@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import SuperAdminLayout from "../../layouts/superadmin";
 import {
   ResponsiveContainer,
   Line,
@@ -201,7 +200,7 @@ const Leave = () => {
   };
 
   return (
-    <SuperAdminLayout>
+    <>
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-2 px-3 mb-3 rounded-lg shadow-md flex-shrink-0">
         <h1 className="text-center text-lg sm:text-xl font-semibold text-white">Leave Dashboard</h1>
         <p className="text-center text-blue-200 mt-1 text-xs sm:text-sm">
@@ -217,7 +216,7 @@ const Leave = () => {
             htmlFor="slicer"
             className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
           >
-            Filter by Driver
+            Filter by Users
           </label>
           <select
             value={selectedUserId}
@@ -225,7 +224,7 @@ const Leave = () => {
             id="slicer"
             className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-xs sm:text-sm"
           >
-            <option value="">All Drivers</option>
+            <option value="">All Users</option>
             {users.map((user) => (
               <option key={user._id} value={user._id}>
                 {user.FirstName} {user.LastName}
@@ -417,7 +416,7 @@ const Leave = () => {
             </ResponsiveContainer>
         </div>
       </div>
-    </SuperAdminLayout>
+    </>
   );
 };
 

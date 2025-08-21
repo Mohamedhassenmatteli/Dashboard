@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import SuperAdminLayout from "../../layouts/superadmin";
 import {
   LineChart,
   Line,
@@ -147,7 +146,7 @@ const Insight = () => {
   const progress = (mustChangePercentage / 100) * circumference;
 
   return (
-    <SuperAdminLayout>
+    <>
       <div className="bg-gray-50 h-screen flex flex-col p-4 overflow-hidden">
        {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-2 px-4 mb-4 rounded-lg shadow-md flex-shrink-0">
@@ -293,110 +292,110 @@ const Insight = () => {
 
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-  {/* Pie chart card */}
- <div
-  className="bg-white rounded-lg shadow-md p-3 flex flex-col"
-  style={{ height: 280, minWidth: 0 /* prevents flexbox shrinking issues */ }}
->
-  <h2 className="text-lg font-semibold text-gray-800 mb-2 text-center">
-    Users Active vs Inactive by Role
-  </h2>
+        {/* Pie chart card */}
+      <div
+        className="bg-white rounded-lg shadow-md p-3 flex flex-col"
+        style={{ height: 280, minWidth: 0 /* prevents flexbox shrinking issues */ }}
+      >
+        <h2 className="text-lg font-semibold text-gray-800 mb-2 text-center">
+          Users Active vs Inactive by Role
+        </h2>
 
 
-  <div style={{ height: 220, minWidth: 0, flexGrow: 1 }}>
-    <ResponsiveContainer width="100%" height="100%">
-  <PieChart>
-    <Pie
-      data={pieData}
-      dataKey="value"
-      nameKey="name"
-      cx="50%"
-      cy="50%"
-      outerRadius={50}
-      innerRadius={35}
-      label={({ percent }) => ` ${(percent * 100).toFixed(1)}%`}
-      labelLine={true}
-    >
-      {pieData.map((entry, index) => (
-        <Cell
-          key={`cell-${index}`}
-          fill={COLORS[index % COLORS.length]}
-        />
-      ))}
-    </Pie>
-    <Tooltip
-      contentStyle={{
-        backgroundColor: "#fff",
-        border: "1px solid #e5e7eb",
-        borderRadius: "0.5rem",
-        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-      }}
-    />
-    <Legend
-      layout="horizontal"
-      verticalAlign="bottom"
-      align="center"
-      height={40}
-      wrapperStyle={{
-        paddingTop: "6px",
-        fontSize: "0.75rem",
-        whiteSpace: "nowrap", // Force horizontal layout
-        overflowX: "auto", // Enable horizontal scroll
-        display: "block",
-      }}
-      formatter={(value) => (
-        <span style={{ whiteSpace: "nowrap" }}>{value}</span>
-      )}
-    />
-  </PieChart>
-</ResponsiveContainer>
-  </div>
-</div>
-
-  {/* Must Change Password card */}
-  <div className="bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center" style={{ height: 280 }}>
-    <h2 className="text-lg font-semibold text-gray-800 mb-3 text-center">
-      Users Must Change Password
-    </h2>
-    <div className="relative w-28 h-28 flex items-center justify-center">
-      <svg className="w-full h-full" viewBox="0 0 100 100">
-        <circle
-          className="text-gray-200"
-          strokeWidth="8"
-          stroke="currentColor"
-          fill="transparent"
-          r={radius}
-          cx="50"
-          cy="50"
-        />
-        <circle
-          className="text-red-500"
-          strokeWidth="8"
-          strokeDasharray={`${progress}, ${circumference}`}
-          strokeLinecap="round"
-          stroke="currentColor"
-          fill="transparent"
-          r={radius}
-          cx="50"
-          cy="50"
-          style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className="text-2xl font-bold text-gray-800">
-          {mustChangePercentage}%
-        </span>
-        <span className="text-xs text-gray-500">of users</span>
-      </div>
-    </div>
-    <p className="mt-3 text-gray-600 text-center px-3 text-sm">
-      Percentage of users who need to update their passwords for security reasons.
-    </p>
-  </div>
-</div>
+        <div style={{ height: 220, minWidth: 0, flexGrow: 1 }}>
+          <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={pieData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={50}
+            innerRadius={35}
+            label={({ percent }) => ` ${(percent * 100).toFixed(1)}%`}
+            labelLine={true}
+          >
+            {pieData.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={COLORS[index % COLORS.length]}
+              />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "0.5rem",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            }}
+          />
+          <Legend
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            height={40}
+            wrapperStyle={{
+              paddingTop: "6px",
+              fontSize: "0.75rem",
+              whiteSpace: "nowrap", // Force horizontal layout
+              overflowX: "auto", // Enable horizontal scroll
+              display: "block",
+            }}
+            formatter={(value) => (
+              <span style={{ whiteSpace: "nowrap" }}>{value}</span>
+            )}
+          />
+        </PieChart>
+      </ResponsiveContainer>
         </div>
       </div>
-    </SuperAdminLayout>
+
+        {/* Must Change Password card */}
+        <div className="bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center" style={{ height: 280 }}>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+            Users Must Change Password
+          </h2>
+          <div className="relative w-28 h-28 flex items-center justify-center">
+            <svg className="w-full h-full" viewBox="0 0 100 100">
+              <circle
+                className="text-gray-200"
+                strokeWidth="8"
+                stroke="currentColor"
+                fill="transparent"
+                r={radius}
+                cx="50"
+                cy="50"
+              />
+              <circle
+                className="text-red-500"
+                strokeWidth="8"
+                strokeDasharray={`${progress}, ${circumference}`}
+                strokeLinecap="round"
+                stroke="currentColor"
+                fill="transparent"
+                r={radius}
+                cx="50"
+                cy="50"
+                style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-2xl font-bold text-gray-800">
+                {mustChangePercentage}%
+              </span>
+              <span className="text-xs text-gray-500">of users</span>
+            </div>
+          </div>
+          <p className="mt-3 text-gray-600 text-center px-3 text-sm">
+            Percentage of users who need to update their passwords for security reasons.
+          </p>
+        </div>
+      </div>
+              </div>
+            </div>
+    </>
   );
 };
 

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import SuperAdminLayout from "../../layouts/superadmin";
 import { TruckIcon, WrenchScrewdriverIcon, PresentationChartLineIcon } from "@heroicons/react/24/outline";
 
 import {
@@ -47,7 +46,7 @@ const FleetDashboard = () => {
   }, []);
 
   return (
-    <SuperAdminLayout>
+    <>
       <div className="bg-gray-50 min-h-screen p-4 flex flex-col gap-4 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-3 px-4 rounded-lg shadow-md flex-shrink-0">
@@ -209,7 +208,7 @@ const FleetDashboard = () => {
           </ChartCard>
         </div>
       </div>
-    </SuperAdminLayout>
+    </>
   );
 };
 

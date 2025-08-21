@@ -5,6 +5,8 @@ const ObjectId = mongoose.Types.ObjectId;
 
 const User = require("../../models/user"); 
 const Trip = require("../../models/trip"); 
+const { authenticateToken, authorizeRoles } = require("../../middleware/authMiddleware");
+//const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth") FOR TESTING
 
 // ---------- Helpers ----------
 function toObjectId(id) {
@@ -14,11 +16,10 @@ function toObjectId(id) {
 const DEFAULT_DEST = { name: "Unknown", lat: 36.8, lon: 10.1 };
 
 // ---------- ROUTE 1: KPIs ----------
-router.get("/:managerId/kpis", async (req, res) => {
+router.get("/kpis", authenticateToken, authorizeRoles("manager"), async (req, res) => {
   try {
     const { driver } = req.query;
-    const managerId = toObjectId(req.params.managerId);
-    if (!managerId) return res.status(400).json({ error: "Invalid managerId" });
+    const managerId = toObjectId(req.user._id);
 
     const driverFilter = { createdBy: managerId };
     if (driver) {
@@ -54,11 +55,10 @@ router.get("/:managerId/kpis", async (req, res) => {
 });
 
 // ---------- ROUTE 2: Average departure time per driver ----------
-router.get("/:managerId/departure-times", async (req, res) => {
+router.get("/departure-times", authenticateToken, authorizeRoles("manager"), async (req, res) => {
   try {
     const { driver } = req.query;
-    const managerId = toObjectId(req.params.managerId);
-    if (!managerId) return res.status(400).json({ error: "Invalid managerId" });
+    const managerId = toObjectId(req.user._id);
 
     const driverFilter = { createdBy: managerId };
     if (driver) {
@@ -121,11 +121,10 @@ router.get("/:managerId/departure-times", async (req, res) => {
 });
 
 // ---------- ROUTE 3: Trips by date ----------
-router.get("/:managerId/trips-by-date", async (req, res) => {
+router.get("/trips-by-date", authenticateToken, authorizeRoles("manager"), async (req, res) => {
   try {
     const { driver } = req.query;
-    const managerId = toObjectId(req.params.managerId);
-    if (!managerId) return res.status(400).json({ error: "Invalid managerId" });
+    const managerId = toObjectId(req.user._id);
 
     const driverFilter = { createdBy: managerId };
     if (driver) {
@@ -159,10 +158,9 @@ router.get("/:managerId/trips-by-date", async (req, res) => {
 });
 
 // ---------- ROUTE 4: Drivers list ----------
-router.get("/:managerId/drivers", async (req, res) => {
+router.get("/drivers", authenticateToken, authorizeRoles("manager"), async (req, res) => {
   try {
-    const managerId = toObjectId(req.params.managerId);
-    if (!managerId) return res.status(400).json({ error: "Invalid managerId" });
+    const managerId = toObjectId(req.user._id);
 
     const drivers = await User.find({ role: "driver", createdBy: managerId })
       .select("_id FirstName LastName")

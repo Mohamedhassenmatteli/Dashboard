@@ -73,7 +73,7 @@ function DriverDashboard() {
     const fetchData = async () => {
       try {
         const [infoRes, kpiRes, tripsRes, mapRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/driver-dashboard/info/${driverId}`),
+          axios.get(`http://localhost:5000/api/driver-dashboard/info`, { params: { driverId } }),
           axios.get(`http://localhost:5000/api/driver-dashboard/kpis`, { params: { driverId } }),
           axios.get(`http://localhost:5000/api/driver-dashboard/trips-over-time`, { params: { driverId, level: groupBy } }),
           axios.get(`http://localhost:5000/api/driver-dashboard/trips-by-destination`, { params: { driverId } }),

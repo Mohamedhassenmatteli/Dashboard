@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import SuperAdminLayout from "../../layouts/superadmin";
-import {
-  TruckIcon,
-  ClockIcon,
-  MapPinIcon,
-  ExclamationTriangleIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
 
 import {
   ResponsiveContainer,
@@ -29,7 +21,7 @@ import {
 import "leaflet/dist/leaflet.css";
 
 const statusColors = {
-  canceled: "#EF4444",
+  failed: "#EF4444",
   completed: "#10B981",
   delayed: "#F59E0B",
   in_progress: "#6366F1",
@@ -37,7 +29,7 @@ const statusColors = {
 };
 
 const statusLabels = {
-  canceled: "Canceled",
+  failed: "failed",
   completed: "Completed",
   delayed: "Delayed",
   in_progress: "In Progress",
@@ -77,7 +69,7 @@ const fetchData = async () => {
       tripsArray.length > 0
         ? tripsArray.reduce((sum, item) => sum + (item.AvgDuration || 0), 0) / tripsArray.length
         : 0;
-    const canceled = tripsArray.reduce((sum, item) => sum + (item.Canceled || 0), 0);
+    const Canceled = tripsArray.reduce((sum, item) => sum + (item.Canceled || 0), 0);
     const delayed = tripsArray.reduce((sum, item) => sum + (item.Delayed || 0), 0);
     const totalStops = tripsArray.reduce((sum, item) => sum + (item.TotalStops || 0), 0);
 
@@ -87,7 +79,7 @@ const fetchData = async () => {
       avgDuration,
       totalStops,
     });
-    setCanceledTrips(canceled);
+    setCanceledTrips(Canceled);
     setDelayedTrips(delayed);
     setStopsKpi(totalStops);
   } catch (err) {
@@ -117,13 +109,7 @@ const fetchMapData = async () => {
     console.error("Error fetching map data:", err);
   }
 };
-const handleDestinationChange = (e) => {
-  setDestination(e.target.value);
-};
 
-const clearDestination = () => {
-  setDestination("");
-};
   
 const [stopsKpi, setStopsKpi] = useState(null);
 
@@ -163,13 +149,13 @@ const handleChartClick = async (data) => {
       pending: "pending",
       in_progress: "in_progress",
       delayed: "delayed",
-      canceled: "canceled",
+      failed: "failed",
     };
 
     rows.forEach((row) => {
       const key = row.period;
       if (!grouped[key]) {
-        grouped[key] = { period: key, completed: 0, in_progress: 0, delayed: 0, canceled: 0, pending: 0 };
+        grouped[key] = { period: key, completed: 0, in_progress: 0, delayed: 0, failed: 0, pending: 0 };
       }
       const statusLabel = statusMap[row.status_trip];
       if (statusLabel && grouped[key]) grouped[key][statusLabel] = parseInt(row.count_trips, 10);
@@ -217,7 +203,7 @@ const handleChartClick = async (data) => {
   );
 
   return (
-    <SuperAdminLayout>
+    <>
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-2 px-4 rounded-lg shadow-md flex-shrink-0 mb-6">
         <h1 className="text-center text-xl sm:text-2xl font-semibold text-white">
           Delivery Dashboard
@@ -229,10 +215,37 @@ const handleChartClick = async (data) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
         {/* KPI Cards - Top Row */}
-        <KpiCard title="Total Trips" value={tripsKpi.totalTrips} icon={<TruckIcon className="w-6 h-6" />} bgColor="bg-blue-500" />
-        <KpiCard title="Delayed" value={delayedtrips !== null ? delayedtrips : "N/A"}  icon={<ExclamationTriangleIcon className="w-6 h-6" />} bgColor="bg-amber-500" />
-        <KpiCard title="Canceled" value={canceledtrips !== null ? canceledtrips : "N/A"}  icon={<XCircleIcon className="w-6 h-6" />} bgColor="bg-red-500" />
-       <KpiCard
+       <KpiCard 
+          title="Total Trips" 
+          value={tripsKpi.totalTrips} 
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 13h2l3-6h9l3 6h2M5 21h14a1 1 0 001-1v-7H4v7a1 1 0 001 1z" />
+            </svg>
+          } 
+          bgColor="bg-blue-500" 
+        />
+        <KpiCard 
+          title="Delayed" 
+          value={delayedtrips !== null ? delayedtrips : "N/A"}  
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          } 
+          bgColor="bg-amber-500" 
+        />
+        <KpiCard 
+          title="Canceled" 
+          value={canceledtrips !== null ? canceledtrips : "N/A"}  
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          } 
+          bgColor="bg-red-500" 
+        />
+        <KpiCard
           title="Average Duration"
           value={
             tripsKpi.avgDuration
@@ -240,17 +253,34 @@ const handleChartClick = async (data) => {
               : "N/A"
           }
           unit=""
-          icon={<ClockIcon className="w-6 h-6" />}
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2m6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
           bgColor="bg-purple-500"
         />
-
-        <KpiCard title="Distance" value={tripsKpi.totalDistance ? (tripsKpi.totalDistance / 1000).toFixed(2) : "N/A"} unit="km" icon={<MapPinIcon className="w-6 h-6" />} bgColor="bg-green-500" />
-       <KpiCard
-        title="Total Stops"
-        value={stopsKpi !== null ? stopsKpi : "N/A"}
-        icon={<MapPinIcon className="w-6 h-6" />}
-        bgColor="bg-indigo-500"
-      />  
+        <KpiCard 
+          title="Distance" 
+          value={tripsKpi.totalDistance ? (tripsKpi.totalDistance / 1000).toFixed(2) : "N/A"} 
+          unit="km" 
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          } 
+          bgColor="bg-green-500" 
+        />
+        <KpiCard
+          title="Total Stops"
+          value={stopsKpi !== null ? stopsKpi : "N/A"}
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3M12 2a10 10 0 100 20 10 10 0 000-20z" />
+            </svg>
+          }
+          bgColor="bg-indigo-500"
+        />
        {/* Destination Filter - Bottom Row */}
         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 col-span-1 lg:col-span-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -363,7 +393,7 @@ const handleChartClick = async (data) => {
                     className="cursor-pointer"
                   >
                     <LeafletTooltip direction="top" offset={[0, -10]} opacity={1} permanent={false} className="font-sans bg-white text-gray-900 rounded-md shadow-lg p-2 border border-gray-200">
-                      <div className="font-semibold text-lg mb-1">{destination.replace("_", " ")}</div>
+                      <div className="font-semibold text-sm mb-1">{destination.replace("_", " ")}</div>
                       <div><span className="font-medium">Status:</span> {statusLabels[status_trip]}</div>
                       <div><span className="font-medium">Trips:</span> {count_trips}</div>
                       <div><span className="font-medium">Coordinates:</span> {coords[0].toFixed(2)}, {coords[1].toFixed(2)}</div>
@@ -375,7 +405,7 @@ const handleChartClick = async (data) => {
           </div>
         </div>
       </div>
-    </SuperAdminLayout>
+    </>
   );
 };
 

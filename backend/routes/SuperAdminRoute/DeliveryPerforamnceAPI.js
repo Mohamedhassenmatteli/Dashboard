@@ -1,19 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const Trip = require("../../models/trip");
+const { authenticateToken, authorizeRoles } = require("../../middleware/authMiddleware"); 
+//const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth");  FOR TESTING
+ 
 
-
-
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // ------------------- INSIGHTS -------------------
-router.get("/insights", async (req, res) => {
+router.get("/insights", authenticateToken , authorizeRoles("super_admin") ,  async (req, res) => {
   const { destination } = req.query;
   try {
     const match = {};
     if (destination) {
-      match["destination.name"] = { 
-        $regex: new RegExp(escapeRegex(destination.trim()), "i")
-      };
+      match["destination.name"]  = destination
+  
+    
     }
 
     const agg = [
@@ -54,15 +54,17 @@ router.get("/insights", async (req, res) => {
 
 
 // ------------------- DRILL -------------------
-router.get("/drill", async (req, res) => {
+router.get("/drill",  authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   const { destination, level = "year", value } = req.query;
 
   const match = {};
-if (destination) {
-  match["destination.name"] = { 
-    $regex: new RegExp(escapeRegex(destination.trim()), "i")
-  };
-}
+ if (destination) {
+      match["destination.name"]  = destination
+  
+    
+    }
+
 
   let dateFormat = "%Y";
   if (level === "month") dateFormat = "%Y-%m";
@@ -122,14 +124,15 @@ if (destination) {
 });
 
 // ------------------- MAP DATA -------------------
-router.get("/map-data", async (req, res) => {
+router.get("/map-data",  authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   const { destination } = req.query;
   const match = {};
 if (destination) {
-  match["destination.name"] = { 
-    $regex: new RegExp(escapeRegex(destination.trim()), "i")
-  };
-}
+      match["destination.name"]  = destination
+  
+    
+    }
 
   try {
     const pipeline = [
@@ -170,11 +173,12 @@ router.get("/stops", async (req, res) => {
   const { destination, date, level } = req.query;
   const match = {};
 
-if (destination) {
-  match["destination.name"] = { 
-    $regex: new RegExp(escapeRegex(destination.trim()), "i")
-  };
-}
+ if (destination) {
+      match["destination.name"]  = destination
+  
+    
+    }
+
   if (date) {
     try {
       let start, end;

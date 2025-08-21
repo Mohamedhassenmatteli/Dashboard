@@ -2,9 +2,10 @@ const express = require("express");
 const router = express.Router();
 const Conges = require("../../models/conges");
 const User = require("../../models/user");
-
+const { authenticateToken, authorizeRoles } = require("../../middleware/authMiddleware");
+//const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth");  FOR TESTING
 // GET /leave/insight
-router.get("/insight", async (req, res) => {
+router.get("/insight",authenticateToken , authorizeRoles("super_admin") , async (req, res) => {
   const driverName = req.query.driver;
 
   try {
@@ -41,7 +42,8 @@ router.get("/insight", async (req, res) => {
 });
 
 // GET /leave/drill
-router.get("/drill", async (req, res) => {
+router.get("/drill",  authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   const driverName = req.query.driver;
   const { level = "year", value } = req.query;
 
@@ -115,7 +117,8 @@ router.get("/drill", async (req, res) => {
 });
 
 // GET /leave/pie
-router.get("/pie", async (req, res) => {
+router.get("/pie",  authenticateToken,
+  authorizeRoles("super_admin"), async (req, res) => {
   const driverName = req.query.driver;
 
   try {

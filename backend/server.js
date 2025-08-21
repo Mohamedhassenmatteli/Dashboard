@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');           // <-- import cors here
+const cors = require('cors');          
 const connectDB = require('./db');
 // Super admin API
 const DriverPerforRoutes = require('./routes/SuperAdminRoute/DriverPerforamnceAPI');
@@ -21,11 +21,11 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// Enable CORS for all origins (or restrict to your frontend origin)
+// Enable CORS for all origins 
 app.use(cors({
-  origin: 'http://localhost:3000',  // allow your React app origin
+  origin: 'http://localhost:3000',  
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,                // if you use cookies/auth (optional)
+  credentials: true,                
 }));
 
 // Middleware to parse JSON bodies

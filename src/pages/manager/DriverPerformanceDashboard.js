@@ -46,22 +46,13 @@ function DriverPerformance() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const params = selectedDriver ? { driver: selectedDriver } : {};
+
         const [kpiRes, departureRes, tripRes, driversRes] = await Promise.all([
-          axios.get(
-            `http://localhost:5000/api/manager-performance/${managerId}/kpis`,
-            { params: { driver: selectedDriver || undefined } }
-          ),
-          axios.get(
-            `http://localhost:5000/api/manager-performance/${managerId}/departure-times`,
-            { params: { driver: selectedDriver || undefined } }
-          ),
-          axios.get(
-            `http://localhost:5000/api/manager-performance/${managerId}/trips-by-date`,
-            { params: { driver: selectedDriver || undefined } }
-          ),
-          axios.get(
-            `http://localhost:5000/api/manager-performance/${managerId}/drivers`
-          ),
+          axios.get("http://localhost:5000/api/manager-performance/kpis", { params }),
+          axios.get("http://localhost:5000/api/manager-performance/departure-times", { params }),
+          axios.get("http://localhost:5000/api/manager-performance/trips-by-date", { params }),
+          axios.get("http://localhost:5000/api/manager-performance/drivers")
         ]);
 
         setKpiData(kpiRes.data);

@@ -1,30 +1,21 @@
 const express = require("express");
 const router = express.Router();
 const Camion = require("../../models/camion"); 
-
-// GET Fleet Insights 
-router.get("/insights", async (req, res) => {
+const {authenticateToken , authorizeRoles} = require("../../middleware/authMiddleware"); // import middleware
+//const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth");  FOR TESTING
+// GET Fleet Insights (super_admin only)
+router.get("/insights", authenticateToken, authorizeRoles("super_admin") ,  async (req, res) => {
   try {
-    // Average Mileage (safe fallback to 0)
     const avgMileageAgg = await Camion.aggregate([
       { $group: { _id: null, avgMileage: { $avg: "$mileage" } } },
     ]);
     const avgMileage = avgMileageAgg.length > 0 ? avgMileageAgg[0].avgMileage || 0 : 0;
 
-    // Total Trucks
     const totalTrucks = await Camion.countDocuments();
-
-    // Trucks In Service
     const trucksInService = await Camion.countDocuments({ status: "in_service" });
 
-    // Truck Capacity by Brand (handle missing capacity)
     const capacityByBrandAgg = await Camion.aggregate([
-      {
-        $group: {
-          _id: "$brand",
-          totalCapacity: { $sum: { $ifNull: ["$capacity", 0] } },
-        },
-      },
+      { $group: { _id: "$brand", totalCapacity: { $sum: { $ifNull: ["$capacity", 0] } } } },
       { $sort: { _id: 1 } },
     ]);
 
@@ -33,7 +24,7 @@ router.get("/insights", async (req, res) => {
       totalTrucks,
       trucksInService,
       capacityByBrand: capacityByBrandAgg.map(item => ({
-         _id: item._id || "Unknown",
+        _id: item._id || "Unknown",
         totalCapacity: item.totalCapacity || 0,
       })),
     });
@@ -44,29 +35,19 @@ router.get("/insights", async (req, res) => {
 });
 
 // GET Truck Maintenance Counts (Yearly)
-router.get("/maintenance-count-year", async (req, res) => {
+router.get("/maintenance-count-year",authenticateToken, authorizeRoles("super_admin"),authenticateToken , async (req, res) => {
   try {
     const now = new Date();
     const startOfYear = new Date(`${now.getFullYear()}-01-01T00:00:00.000Z`);
     const endOfYear = new Date(`${now.getFullYear()}-12-31T23:59:59.999Z`);
 
     const data = await Camion.aggregate([
-      { 
-        $match: { 
-          status: "maintenance", 
-          createdAt: { $gte: startOfYear, $lte: endOfYear } 
-        } 
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y", date: "$createdAt" } },
-          count: { $sum: 1 },
-        },
-      },
+      { $match: { status: "under_maintenance", createdAt: { $gte: startOfYear, $lte: endOfYear } } },
+      { $group: { _id: { $dateToString: { format: "%Y", date: "$createdAt" } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]);
 
-    const formattedData = data.map((item) => ({
+    const formattedData = data.map(item => ({
       period: item._id || "Unknown",
       count: item.count || 0,
     }));
@@ -78,14 +59,11 @@ router.get("/maintenance-count-year", async (req, res) => {
   }
 });
 
-
-
-//  GET Fuel Consumption per Truck 
-router.get("/fuel-consumption", async (req, res) => {
+// GET Fuel Consumption per Truck 
+router.get("/fuel-consumption",authenticateToken, authorizeRoles("super_admin"),  async (req, res) => {
   try {
     const trucks = await Camion.find({}, { truckId: 1, fuelConsumption: 1, _id: 0 }).lean();
 
-    // Map to default 0 if fuelConsumption is missing
     const data = trucks.map(truck => ({
       truckId: truck.truckId || "Unknown",
       fuelConsumption: truck.fuelConsumption || 0,

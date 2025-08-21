@@ -1,11 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const { authenticateToken, authorizeRoles } = require("../../middleware/authMiddleware");
+// const { fakeAuthenticateToken, fakeAuthorizeRoles } = require("../../middleware/fakeAuth"); FOR TESTINHG !!!!
 
 const User = require("../../models/user");
 const Trip = require("../../models/trip");
 const Truck = require("../../models/camion");
 
+const DEFAULT_LAT = 36.8;
+const DEFAULT_LON = 10.1;
+
+// Helper to ensure ObjectId
 function toObjectId(id) {
   try {
     return new mongoose.Types.ObjectId(id);
@@ -14,17 +20,9 @@ function toObjectId(id) {
   }
 }
 
-const DEFAULT_LAT = 36.8;
-const DEFAULT_LON = 10.1;
-
-// Escape regex safely
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const normalizeString = (str) =>
-  typeof str === "string" ? str.trim() : "";
-
 // ---------------- 1) Driver Info ----------------
-router.get("/info/:driverId", async (req, res) => {
-  const driverId = toObjectId(req.params.driverId);
+router.get("/info", authenticateToken, authorizeRoles("driver"), async (req, res) => {
+  const driverId = toObjectId(req.query.driverId || req.user._id);
   if (!driverId) return res.status(400).json({ error: "Invalid driverId" });
 
   try {
@@ -38,11 +36,12 @@ router.get("/info/:driverId", async (req, res) => {
 });
 
 // ---------------- 2) KPIs ----------------
-router.get("/kpis", async (req, res) => {
-  const driverId = toObjectId(req.query.driverId);
+router.get("/kpis", authenticateToken, authorizeRoles("driver"), async (req, res) => {
+  const driverId = toObjectId(req.query.driverId || req.user._id);
   if (!driverId) return res.status(400).json({ error: "Invalid driverId" });
 
   try {
+    // Make sure we match ObjectId
     const tripStats = await Trip.aggregate([
       { $match: { driver: driverId } },
       {
@@ -71,9 +70,7 @@ router.get("/kpis", async (req, res) => {
       totalDistance += stat.totalDistance || 0;
       totalDuration += stat.totalDuration || 0;
 
-      if (Array.isArray(stat.truckIds)) {
-        stat.truckIds.forEach((t) => t && truckIdsSet.add(String(t)));
-      }
+      if (Array.isArray(stat.truckIds)) stat.truckIds.forEach(t => t && truckIdsSet.add(String(t)));
     }
 
     let totalFuel = 0;
@@ -86,11 +83,7 @@ router.get("/kpis", async (req, res) => {
         return acc;
       }, {});
 
-      const completedTrips = await Trip.find(
-        { driver: driverId, statusTrip: "completed" },
-        { distance: 1, truck: 1 }
-      ).lean();
-
+      const completedTrips = await Trip.find({ driver: driverId, statusTrip: "completed" }, { distance: 1, truck: 1 }).lean();
       for (const trip of completedTrips) {
         const truck = trip.truck ? truckMap[String(trip.truck)] : null;
         if (!truck) continue;
@@ -118,25 +111,17 @@ router.get("/kpis", async (req, res) => {
 });
 
 // ---------------- 3) Trips Over Time ----------------
-router.get("/trips-over-time", async (req, res) => {
-  const driverId = toObjectId(req.query.driverId);
+router.get("/trips-over-time", authenticateToken, authorizeRoles("driver"), async (req, res) => {
+  const driverId = toObjectId(req.query.driverId || req.user._id);
   if (!driverId) return res.status(400).json({ error: "Invalid driverId" });
 
   const level = req.query.level || "day";
 
   try {
     let groupId;
-    if (level === "year") {
-      groupId = { year: { $year: "$createdAt" } };
-    } else if (level === "month") {
-      groupId = { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } };
-    } else {
-      groupId = {
-        year: { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day: { $dayOfMonth: "$createdAt" },
-      };
-    }
+    if (level === "year") groupId = { year: { $year: "$createdAt" } };
+    else if (level === "month") groupId = { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } };
+    else groupId = { year: { $year: "$createdAt" }, month: { $month: "$createdAt" }, day: { $dayOfMonth: "$createdAt" } };
 
     const tripsOverTime = await Trip.aggregate([
       { $match: { driver: driverId } },
@@ -176,8 +161,8 @@ router.get("/trips-over-time", async (req, res) => {
 });
 
 // ---------------- 4) Trips By Destination ----------------
-router.get("/trips-by-destination", async (req, res) => {
-  const driverId = toObjectId(req.query.driverId);
+router.get("/trips-by-destination", authenticateToken, authorizeRoles("driver"), async (req, res) => {
+  const driverId = toObjectId(req.query.driverId || req.user._id);
   if (!driverId) return res.status(400).json({ error: "Invalid driverId" });
 
   try {
@@ -185,11 +170,7 @@ router.get("/trips-by-destination", async (req, res) => {
       { $match: { driver: driverId } },
       {
         $group: {
-          _id: {
-            name: "$destination.name",
-            lat: "$destination.lat",
-            lon: "$destination.lon",
-          },
+          _id: { name: "$destination.name", lat: "$destination.lat", lon: "$destination.lon" },
           trip_count: { $sum: 1 },
         },
       },
@@ -200,10 +181,6 @@ router.get("/trips-by-destination", async (req, res) => {
           trip_count: 1,
           latitude: { $ifNull: ["$_id.lat", DEFAULT_LAT] },
           longitude: { $ifNull: ["$_id.lon", DEFAULT_LON] },
-          coords: [
-            { $ifNull: ["$_id.lat", DEFAULT_LAT] },
-            { $ifNull: ["$_id.lon", DEFAULT_LON] },
-          ],
         },
       },
       { $sort: { destinationName: 1 } },

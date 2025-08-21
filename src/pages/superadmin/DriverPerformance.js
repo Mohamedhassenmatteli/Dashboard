@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import SuperAdminLayout from "../../layouts/superadmin";
 import {
   ResponsiveContainer,
   BarChart,
@@ -127,7 +126,7 @@ const DriverPerformance = () => {
   };
 
   return (
-  <SuperAdminLayout>
+  <>
     <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-2 px-4 mb-4 rounded-lg shadow-md flex-shrink-0">
       <h1 className="text-center text-xl font-semibold text-white">
         Driver Performance Dashboard
@@ -328,7 +327,7 @@ const DriverPerformance = () => {
         </div>
       </div>
     </div>
-  </SuperAdminLayout>
+  </>
 );
 
 };
